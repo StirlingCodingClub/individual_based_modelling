@@ -1,0 +1,191 @@
+---
+title: "Introduction to individual-based modelling using R"
+author: "Brad Duthie"
+date: "20 Februrary 2019"
+output: 
+    html_document:
+        code_folding: show
+bibliography: ibm_refs.bib
+---
+
+Contents
+================================================================================
+
+********************************************************************************
+
+**Note: Please think of this document as a living document, which you are free to improve (like a [wiki](https://en.wikipedia.org/wiki/Wiki)) with minor edits, new sections that others might find useful, or [additional resources](#whatelse) that you find that you think others might also find useful. After reading through this, you will have been introduced to the basics of building individual-based models (IBMs), and you should be able to start coding your own IBMs in R**
+
+********************************************************************************
+
+- [Introduction: What is an individual-based model (IBM)?](#intro)
+- [Getting started with IBMs in R](#Rstart)
+
+********************************************************************************
+
+<a name="intro">Introduction: What is an individual-based model (IBM)?</a>
+================================================================================
+
+
+
+
+<a name="initialise">Getting started with IBMs in R</a>
+================================================================================
+
+In an IBM, discrete individuals are represented by data structures in code. There are several possible ways to do this, and the way that works best is probably most often a matter of the modeller's preference and the coding language that they are using. In R, there are a few possibilities, but I usually find the most intuitive way to model individuals is using a data table or array. For example, we can think about a two dimensional array as modelling a population of individuals, with rows representing discrete individuals and columns represent those individuals' characteristics (I am being deliberately vague about what constitutes a 'characteristic' because this can be almost anything we want it to be). The code below creates a two dimensional data array (`inds`) to model five individuals that have three characteristics each.
+
+```{r}
+inds           <- array(data = 0, dim = c(5, 3));
+colnames(inds) <- c("characteristic_1", "characteristic_2", "characteristic_3");
+rownames(inds) <- c("ind_1", "ind_2", "ind_3", "ind_4", "ind_5");
+print(inds);
+```
+
+The row and column names are not required, but I have included them to make it easier to refer back to individuals and their characteristics. I have initialised all individual characteristics with a value of zero because it is still undecided what characteristics are actually being modelled. Characteristics can be anything we want them to be, from phenotypic traits, to alleles, to spatial locations. The whole `inds` array is like a data set in which some number of measurements (columns) have been taken for some number individuals (rows), except that we can make these measurements up to be whatever we want them to be, and manipulate them according to whatever rules we want to model. The objective is to carefully choose a set of characteristics and rules that model whatever biological process it is that we are trying to better understand.
+
+We can start with some very simple individual characteristics. Assume that we want to model a population of animals moving around a landscape, and we want to include animal body mass and location as characteristics. We can use use 'characteristic_1' in column 1 to randomly assign each individual a body mass according to some selected distribution, while 'characteristic_2' in column 2 and 'characterist_3' in column 3 can be assigned random x and y locations, respectively. I will change the columns to reflect the new modelling decision for individual characteristics below.
+
+```{r}
+colnames(inds) <- c("body_mass", "x_loc", "y_loc");
+```
+
+Let us say that body mass is normally distributed around a value of 23 with a standard deviation of 3. If it helps the reader to have a concrete animal in mind to visualise, this is roughly the body mass distribution in kilograms of female [roe deer](https://en.wikipedia.org/wiki/Roe_deer) [@Pettorelli2002]. Nevertheless, it is usually not important to have any particular species in mind unless the model is being constructed to address very targeted questions. We can give each individual a body mass randomly sampled from $\mathcal{N}(23, 3)$ with the code below.
+
+```{r}
+inds[,1] <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+```
+
+Note that the function `dim(inds)` returns the dimensions of the array `inds` where element 1 is the number of rows (`r dim(inds)[1]` in this case) and element 2 is the number of columns (`r dim(inds)[2]` in this case). Now, each individual in the array is modelled with a unique body mass in the first column.
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+We can now give each individual its own location. Assume that these individuals all occupy some location on an $8 \times 8$ grid like the one shown below.
+
+```{r, echo = FALSE, fig.height = 6, fig.width = 6, fig.align = "center"}
+par(mar = c(5, 5, 1, 1));
+plot(x = 1:8, y = 1:8, type = "n", xaxt = "n", yaxt = "n", xlab = "x location", 
+     ylab = "y location", xlim = c(0.5, 8.5), ylim = c(0.5, 8.5), yaxs= 'i', 
+     xaxs = 'i', cex.lab = 1.5);
+axis(side = 1, at = 1:8, labels = 1:8, cex.axis = 1.5);
+axis(side = 2, at = 1:8, labels = 1:8, cex.axis = 1.5);
+pt <- seq(from = 0.5, to = 7.5, length = 8);
+for(i in 1:8){
+    abline(v = pt[i]);
+    abline(h = pt[i]);
+}
+```
+
+We do not actually need to code this grid to model individual locations or movement, but it might help to think of each individual in our model as occupying some square (i.e., 'cell') on the grid above. This is just one way to model individual position on a spatially explicit landscape, but it is often especially useful because it allows us to use natural numbers to define how far away individuals are from one another (number of cells away), and when individuals occupy the exact same location. We can then set individual x and y locations in to columns 2 and 3, respectively, by sampling from a vector of numbers 1 to 8 with replacement (sampling with replacement ensures that more than one individual can occupy the same x or y location).
+
+```{r, echo = TRUE}
+inds[,2] <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[,3] <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+```
+
+```{r, echo = FALSE}
+inds[,3] <- sample(x = 1:8, size = dim(inds)[1], replace = FALSE);
+if(inds[1, 2] == 8){
+    inds[1, 2] <- 7;   
+}
+if(inds[1, 2] == 1){
+    inds[1, 2] <- 2;   
+}
+if(inds[1, 3] == 8){
+    inds[1, 3] <- 7;   
+}
+if(inds[1, 3] == 1){
+    inds[1, 3] <- 2;   
+}
+```
+
+Each individual now occupies a location on the landscape, as shown now in columns 2 and 3.
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+We can even plot the individuals x and y locations to see how they are spatially distributed.
+
+```{r, fig.height = 6, fig.width = 6, fig.align = "center"}
+plot(x = inds[,2], y = inds[,3], pch = 20, cex = 4, xlim = c(1, 8),
+     ylim = c(1, 8), xlab = "x location", mar = c(5, 5, 1, 1),
+     ylab = "y location", cex.lab = 1.5, cex.axis = 1.5);
+```
+
+This is really all that is needed to get started. It is, of course, possible to add any number of individuals (rows) or individual characteristics (columns). And it is not necessary to model body mass or even spatial location if these are not useful characteristics for modelling the system of interest. What matters is that we have a discrete number of individuals with some set of characteristics that are relevant for whatever question it is we want to answer. These individuals and characteristics will change over the course of simulating an IBM according to whatever rules we specify. This can include rules for movement, mating, birth, death, or anything else that we might think is important to model in the system. In the next section, we can consider some simple rules for individual movement.
+
+<a name="move">Movement of individuals on a landscape</a>
+================================================================================
+
+Each of the individuals we initialised in the [previous section](#initialise) has an x and y location on the landscape. To model individual movement, we need to come up with some rule for how these locations change. The simplest model of movement is to allow individuals to increase or decrease their x and y locations by 1 cell, so `ind_1` with an x location of `r inds[1,2]` might move along the x axis to a new location `r inds[1,2] + 1` or `r inds[1,2] - 1`. The individual might likewise move up or down one cell on the y axis. To model random movement to any of the eight cells surrounding a focal individual's current location (i.e., allowing diagonal movement), we can sample two random integer values from the set $\{-1, 0, 1\}$ (with replacement and equal probability). One value is for the x location, and the other is for the y location. Movement is modelled by adding each value to the current x and y locations; the code below moves `ind_1`.
+
+```{r}
+x_move     <- sample(x = c(-1, 0, 1), size = 1);
+y_move     <- sample(x = c(-1, 0, 1), size = 1);
+inds[1, 2] <- inds[1, 2] + x_move;
+inds[1, 3] <- inds[1, 3] + y_move;
+```
+
+```{r, echo = FALSE}
+old_x <- inds[1, 2] - x_move;
+old_y <- inds[1, 3] - y_move;
+if(x_move == 0 & y_move == 0){
+    old_x     <- inds[1,2];
+    inds[1,2] <- inds[1,2] - 1;
+}
+```
+
+We can see the new location in the table `inds`, and plot the individuals' locations again, with the location of `ind_1` shown in red. The arrow below shows the original cell from which `ind_1` moved.
+
+```{r, echo = FALSE, fig.height = 6, fig.width = 6, fig.align = "center"}
+print(inds);
+plot(x = inds[,2], y = inds[,3], pch = 20, cex = 4, xlim = c(1, 8),
+     ylim = c(1, 8), xlab = "x location", mar = c(5, 5, 1, 1),
+     ylab = "y location", cex.lab = 1.5, cex.axis = 1.5);
+points(x = inds[1,2], y = inds[1,3], pch = 20, cex = 4.2, col = "red");
+points(x = old_x, y = old_y, pch = 20, cex = 4);
+arrows(x0 = old_x, x1 = inds[1,2], y0 = old_y, y1 = inds[1,3], length = 0.1,
+       lwd = 3);
+```
+
+This was only one individual, but we can move all of the individuals simultaneously according to our movement rule if we sample a vector of `x_move` and `y_move` that matches the number of individuals in the array. The code below samples two movement vectors that are the same length as the number of rows in `inds` (i.e., one value of -1, 0, or 1 sampled for each individual's x and y location).
+
+```{r}
+x_move    <- sample(x = c(-1, 0, 1), size = dim(inds)[1], replace = TRUE);
+y_move    <- sample(x = c(-1, 0, 1), size = dim(inds)[1], replace = TRUE);
+inds[, 2] <- inds[, 2] + x_move;
+inds[, 3] <- inds[, 3] + y_move;
+```
+
+```{r, echo = FALSE}
+for(i in 1:dim(inds)[1]){
+    if(inds[i, 2] == 8){
+        inds[i, 2] <- 7;   
+    }
+    if(inds[i, 2] == 1){
+        inds[i, 2] <- 2;   
+    }
+    if(inds[i, 3] == 8){
+        inds[i, 3] <- 7;   
+    }
+    if(inds[i, 3] == 1){
+        inds[i, 3] <- 2;   
+    }
+}
+```
+
+We can now see their new positions in the data array columns 2 and 3, and compare the new values in these columns with the old one above to verify that individuals have indeed moved, at most, one cell in either direction.
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+We can see that the x and y locations have not changed by more than a single value. Double-checking code in this way is generally a very good idea at every step of the modelling process. It is very easy to overlook a coding error that might cause a much different rule than the one intended.
+
+
+
+References
+================================================================================
+
+
