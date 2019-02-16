@@ -185,7 +185,58 @@ We can now see their new positions in the data array columns 2 and 3, and compar
 print(inds);
 ```
 
-We can see that the x and y locations have not changed by more than a single value. Double-checking code in this way is generally a very good idea at every step of the modelling process. It is very easy to overlook a coding error that might cause a much different rule than the one intended. But now that we have some code that we know works, we can use it to simulate the movement of individuals over multiple time steps.
+We can see that the x and y locations have not changed by more than a single value. Double-checking code in this way is generally a very good idea at every step of the modelling process. It is very easy to overlook a coding error that might cause a much different rule than the one intended. To be especially vigilant, it is often a good idea to give each unique process in an IBM its own function. There are at least three benefits of coding this way. First, it will later allow us to test each process in the IBM independently, so that if one part of the model does not appear to be working as it should, then we can narrow down the problem more easily by checking each function. Second, it makes it easier to change the order of operations in our IBM (e.g., whether movement happens before, or after, mating, birth, or death processes). Third, it makes the code easier to read; rather than having to scan through all of the code at once to understand a model, we can break things down piece by piece (this will become clearer later). Below, I write a function to move individuals on the landscape according to the movement rules described above.
+
+```{r}
+movement <- function(inds, xloc = 2, yloc = 3){
+    total_inds   <- dim(inds)[1]; # Get the number of individuals in inds
+    move_dists   <- c(-1, 0, 1);  # Define the possible distances to move
+    x_move       <- sample(x = move_dists, size = total_inds, replace = TRUE);
+    y_move       <- sample(x = move_dists, size = total_inds, replace = TRUE);
+    inds[, xloc] <- inds[, xloc] + x_move;
+    inds[, yloc] <- inds[, yloc] + y_move;
+    return(inds);
+}
+```
+
+We now have a function `movement`, which takes in three arguments (`inds`, `xloc`, and `yloc`) and returns an updated array of individuals with new x and y locations. The argument `inds` is the array of individuals that we want to move, while `xloc` and `yloc` are the column numbers where the x and y locations of individuals are stored, respectively (default values are set to 2 and 3). Of course, we could have not included `xloc` and `yloc` as function arguments, and instead just added 2s and 3s where `xloc` and `yloc` appear within the `movement` function. But specifying these arguments makes the function more flexible. Now if we want to change which of the individual array `inds` columns specify location, for whatever reason, we need only specify a different `xloc` and `yloc` when calling the `movement` function. We could do the same with `move_dists`, if we wanted to make `movement` even more flexible.
+
+To move individuals in the array `inds`, we now only need to call the `movement` function. As a reminder, here is what `inds` looks like now.
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+Below moves the individuals with only one line of code using our new function. Note that we do not need to specify `xloc` and `yloc` arguments because we are happy with the default values of 2 and 3, respectively.
+
+```{r}
+inds <- movement(inds);
+```
+
+The new `inds` array is below.
+
+```{r, echo = FALSE}
+for(i in 1:dim(inds)[1]){
+    if(inds[i, 2] == 9){
+        inds[i, 2] <- 7;   
+    }
+    if(inds[i, 2] == 0){
+        inds[i, 2] <- 2;   
+    }
+    if(inds[i, 3] == 9){
+        inds[i, 3] <- 7;   
+    }
+    if(inds[i, 3] == 0){
+        inds[i, 3] <- 2;   
+    }
+}
+print(inds);
+```
+
+
+Now that we have some code that has been tested and works as intended, we can use it to simulate the movement of individuals over multiple time steps. I will show how to do this in the next section.
+
+
 
 <a name="time">Simulating individual movement over time</a>
 ================================================================================
