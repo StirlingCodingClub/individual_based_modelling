@@ -28,7 +28,7 @@ Contents
 ================================================================================
 
 
-
+- Note that the code here is not optimised for efficiency. It is written to be as easy to learn as possible.
 
 <a name="initialise">Getting started with IBMs in R</a>
 ================================================================================
@@ -237,14 +237,140 @@ print(inds);
 Now that we have some code that has been tested and works as intended, we can use it to simulate the movement of individuals over multiple time steps. I will show how to do this in the next section.
 
 
-
 <a name="time">Simulating individual movement over time</a>
 ================================================================================
 
+To simulate the movement of our individuals over time, we now need to call the `movement` function that we wrote in [the previous section](#move) multiple times. We can define the total number of time steps to simulate over below.
 
+```{r}
+time_steps <- 20;
+```
+
+To run a simulation of individuals moving for twenty time steps, we now need to use [a loop](https://stirlingcodingclub.github.io/using_loops/loop_notes.html). A `while` loop in which some variable `ts` (indicating 'time step') increases from 0 to 19 is probably the easiest way to code the simulation.
+
+```{r}
+ts <- 0;
+while(ts < time_steps){
+    inds <- movement(inds);
+    ts   <- ts + 1; 
+}
+```
+
+The code above first sets the starting time step to a value of 0. Within the `while` loop, individuals in the `inds` array are moved, then the time step value is increased by one. The loop continues calling `movement` to move individuals until the condition in the while loop (`ts < time_steps`) is satisfied. After the loop is finished, individuals have moved ten times from their initial starting locations. Here is where they are located now.
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+The code appears to have worked, but there is a problem that we have not yet considered. We originally defined our landscape as an $8 \times 8$ grid, but there is nothing in the movement rules preventing individuals from moving off of the landscape. This might not matter to us; perhaps we are happy to assume that some individuals will migrate outside of the area of interest. But often we want the population to be enclosed, and for individuals to not leave it by moving outside the bounds that we have set. If this is the case, then we need to decide what happens when individuals move past the edge of the landscape. There are several possibilities for what to do when individuals move outside of the landscape boundary.
+
+1. Place them back onto the boundary edge (i.e., a sticky landscape edge).
+2. Change their direction at the boundary edge (i.e., a reflecting landsacpe edge).
+3. Have them move to the opposite side of the landscape (i.e., no a torus landscape with no edge)
+
+In my experience, 3 is the most popular option, perhaps because it eliminates the problem of what to do with individuals that leave the edge of the landsacpe altogether (by making it so that no edge exists). For now, I will demonstrate a reflecting edge instead because it is slightly easier to code. To make individuals that move one cell past the boundary of the landscape instead move back one cell toward the centre of the landscape, we can add some new code to the `movement` function.
+
+```{r}
+movement <- function(inds, xloc = 2, yloc = 3, xmax = 8, ymax = 8){
+    total_inds   <- dim(inds)[1]; # Get the number of individuals in inds
+    move_dists   <- c(-1, 0, 1);  # Define the possible distances to move
+    x_move       <- sample(x = move_dists, size = total_inds, replace = TRUE);
+    y_move       <- sample(x = move_dists, size = total_inds, replace = TRUE);
+    inds[, xloc] <- inds[, xloc] + x_move;
+    inds[, yloc] <- inds[, yloc] + y_move;
+    # =========   The reflecting boundary is added below
+    for(i in 1:total_inds){               # For each individual in the array
+        if(inds[i, xloc] > xmax){         # If it moved passed the maximum xloc
+            inds[i, xloc] <- xmax - 1;    # Then move it back toward the centre
+        }
+        if(inds[i, xloc] < 1){            # If it moved below 1 on xloc
+            inds[i, xloc] <- 2;           # Move it toward the centre (2)
+        }
+        if(inds[i, yloc] == ymax){        # If it moved passed the maximum yloc
+            inds[i, yloc] <- ymax - 1;    # Then move it back toward the centre
+        }
+        if(inds[i, yloc] < 1){            # If it moved below 1 on yloc
+            inds[i, yloc] <- 2;           # Then move it toward the centre (2)
+        }
+    } 
+    # =========  Now all individuals should stay on the landscape
+    return(inds);
+}
+```
+
+With the new `movement` function, let us first initialise a new population of `inds` in [the same way as before](#initialise). 
+
+```{r}
+inds           <- array(data = 0, dim = c(5, 3));
+colnames(inds) <- c("body_mass", "x_loc", "y_loc");
+rownames(inds) <- c("ind_1", "ind_2", "ind_3", "ind_4", "ind_5");
+inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+```
+
+Here is what the newly initialised individuals in `inds` look like.
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+With our new movement function defined above, we can again simulate movement over ten time steps. This time, though, we should not see any individuals leaving the $8 \times 8$ grid.
+
+```{r}
+ts         <- 0;
+time_steps <- 20;
+while(ts < time_steps){
+    inds <- movement(inds);
+    ts   <- ts + 1; 
+}
+print(inds);
+```
+
+Individuals have now moved from their original locations after 20 time steps, but none of the individuals has an x or y location less than 1 or greater than 8, meaning that they are all still on the landscape. Hence, we now have a working IBM in which individuals move around randomly on an $8 \times 8$ grid. We have initialised five individuals with three characteristics, but as long as we have x and y locations stored in `inds` columns, we could always increase the number of individuals and characteristics in the model and add new rules (functions) within the above while loop. I will show how to do this in the next section, but before moving on, I want to first show some ways to keep track of what is already going on in our IBM.
+
+Note that in using the loop immediately above, we have successfully modelled animal movement over 20 time steps, but we have not retained any information about where each individual was located *within* these 20 time steps. We only know the x and y locations where the individuals started at `time_step = 0`, and where each of them ended at `time_step = 19`. This might not be a problem; perhaps the intervening locations do not really matter to us. Or maybe this would be too much information to store[^1]. But suppose that we actually wanted to record the locations of all of these individuals in each time step, and new that storing these data would not be an issue. Doing so would allow us to reconstruct the movement patterns of each individual and see how the whole population moves from time step 0 to time step 20. In R, we can do this easily by creating a new list and storing the `inds` array as a list element in each time step.
+
+```{r}
+ts         <- 0;
+time_steps <- 20;
+inds_hist  <- NULL;
+while(ts < time_steps){
+    inds            <- movement(inds);
+    ts              <- ts + 1; 
+    inds_hist[[ts]] <- inds;
+}
+print(inds);
+```
+
+With the addition of the `inds_hist` list, we can see where every individual was in each time step. For example, we can look at individual movement in the first three time steps by printing `inds_hist` elements below (note that `inds_hist[[1:3]]` does not work in R -- we need to print line by line, or use a loop).
+
+```{r, echo = TRUE}
+print(inds_hist[[1]]);
+print(inds_hist[[2]]);
+print(inds_hist[[3]]);
+```
+
+The `inds_hist` list essentially stores the entire history of the individuals moving over the course of the simulation. Storing this kind of information is very useful for reconstructing the history of a simulation to understand what is going on. As more biological processes are added (e.g., birth, death, predation, etc.), we can effectively take a perfect snapshot of each point in time in the system that we are modelling. Often the sheer size of an IBM prohibits a complete record of every individual's history, but as the IBM grows, we can choose what information is important to retain and analyse. For now, because the the model is small (few individuals and time steps), we can simply keep everything. Model analysis then becomes a process of extracting the relevant information that we have stored during the simulation and using it to make meaningful biological inferences. We could, for example, see where individual 1 has been over the 20 time steps by extracting the information from `inds_hist` and storing it in a new table.
+
+```{r}
+ind1_locs <- array(data = NA, dim = c(20, 3));
+for(i in 1:20){
+    ind1_locs[i, 1] <- i                     # Save the time step
+    ind1_locs[i, 2] <- inds_hist[[i]][1, 2]; # xloc for the time step
+    ind1_locs[i, 3] <- inds_hist[[i]][1, 3]; # yloc for the time step
+}
+colnames(ind1_locs) <- c("time_step", "x_loc", "y_loc");
+print(ind1_locs);
+```
+
+The array above shows the full path of individual 1 from x location `r ind1_locs[1,2]` and y location `r ind1_locs[1,3]` to x location `r ind1_locs[20,2]` and y location `r ind1_locs[20,3]`.
 
 
 References
 ================================================================================
+
+
+[^1]: This has happened to me once, on accident, when coding [an IBM for plant-pollinator-exploiter interactions](https://github.com/bradduthie/Duthie_and_Falcy_2013) [@Duthie2013]. While testing my code, I had been printing off the locations of all individuals in the IBM to a text file. Later, upon running a large number of simulations, I noticed that my computer was slowing down quite a bit. Soon, a warning message came up that there was no more space to write to my hard drive. Because I had forgotten to stop printing all individual locations to the text file, every new location of millions of individuals was being recorded. The text file was well over 150 gigabytes when I forced the simulations to terminate, then removed the bit of code that printed individual locations.
 
 
