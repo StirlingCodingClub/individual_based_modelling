@@ -21,6 +21,7 @@ Contents
 - [Getting started with IBMs in R](#Rstart)
 - [Movement of individuals on a landscape](#move)
 - [Simulating individual movement over time](#time)
+- [Simulating individual birth](#birth)
 
 ********************************************************************************
 
@@ -364,7 +365,193 @@ colnames(ind1_locs) <- c("time_step", "x_loc", "y_loc");
 print(ind1_locs);
 ```
 
-The array above shows the full path of individual 1 from x location `r ind1_locs[1,2]` and y location `r ind1_locs[1,3]` to x location `r ind1_locs[20,2]` and y location `r ind1_locs[20,3]`.
+The array above shows the full path of individual 1 from x location `r ind1_locs[1,2]` and y location `r ind1_locs[1,3]` to x location `r ind1_locs[20,2]` and y location `r ind1_locs[20,3]`. We could do the same for any number of individuals in the model, if desired, and for any number of time steps. We therefore have a working model of individual movement within a confined area of landscape. In the next section, we will add some more biological realism by creating a new rule and function for modelling individual births in the population.
+
+<a name="birth">Simulating individual birth</a>
+================================================================================
+
+To simulate birth in our population of individuals, we need some rule to determine when an individual reproduces. As a simplifying assumption, let as assume that all individuals in our model are female, and that the number of birth events for an individual $B_{i}$ is sampled from a Poisson distribution with 0.5 expected offspring per year,
+
+$$B_{i} \sim Poisson(\lambda = 0.5).$$
+
+In R, we can sample some number of values $n$ from a Poisson distribution with a given rate parameter ($\lambda$) using the `rpois` function. If we wanted to sample for five individuals with $\lambda = 5$, we could therefore use the code below.
+
+```{r}
+rpois(n = 5, lambda = 0.5);
+```
+
+If we are simulating individual reproduction, however, there needs to be some place in the model to store these values. The simplest solution is to initialise our array of individuals (`inds`) with another column, representing the number of offspring an individual has at a given time step.
+
+```{r}
+inds           <- array(data = 0, dim = c(5, 4));
+colnames(inds) <- c("body_mass", "x_loc", "y_loc", "repr");
+rownames(inds) <- c("ind_1", "ind_2", "ind_3", "ind_4", "ind_5");
+inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+```
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+We now have the extra column `repr` for individual reproduction. We could add some reproduction for each individual immediately by sampling from `rpois` to add values to the fourth column, but for now I will instead create a new function `birth` to both sample births for each individual and add the new offspring at the same time. In the `birth` function, each individual will first be assigned a number of offspring with `rpois`, then these new offspring will be added to the array `inds`.
+
+```{r}
+birth <- function(inds, lambda = 0.5, repr_col = 4, ind_cols = 4){
+    total_inds       <- dim(inds)[1]; # Get the number of individuals in inds
+    inds[, repr_col] <- rpois(n = total_inds, lambda = lambda); 
+    total_off        <- sum(inds[, repr_col]);
+    # ---- We now have the total number of new offspring, let's make them
+    new_inds     <- array(data = 0, dim = c(total_off, ind_cols));
+    new_inds[,1] <- rnorm(n = dim(new_inds)[1], mean = 23, sd = 3);
+    new_inds[,2] <- sample(x = 1:8, size = dim(new_inds)[1], replace = TRUE);
+    new_inds[,3] <- sample(x = 1:8, size = dim(new_inds)[1], replace = TRUE);
+    # ---- Our new offspring can now be attached in the inds array
+    inds <- rbind(inds, new_inds);
+    return(inds);
+}
+```
+
+In the function above, we first sample from a Poisson distribution using `rpois` to determine how many offspring each individual has. Next, we sum that number up to get `total_off`, which will be the total number of new individuals to be added to `inds`. A new array is made (`new_inds`) with `total_off` rows and four columns, and values are initialised for individual body mass and location. Finally, this `new_inds` array is combined with the old one `inds` using `rbind`[^2] so that our working array of individuals now has both the old individuals and the new ones. We can see how this function runs now by running it below.
+
+```{r}
+inds <- birth(inds = inds);
+```
+
+What has happend above is that we have read `inds` into the function `birth` and stored the output into an (overwritten) `inds` with the new individuals in the array. 
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+Note that the sum of the fourth column equals the number of new individuals added (`r sum(inds[,4])`). The new individuals do not have row names, but this is okay; we do not really need them. Note that there are other ways we could add to `births`. We might, for example, wish for new offspring to have similar body masses to their mothers', or for offspring to be initialised in the same locations as their mothers rather than being randomly placed on the landscape. I encourage the reader to try to think about these kinds of possibilities, and to try adding them to the code above.
+
+For now, we can simulation both birth and movement of `inds` over time using the loop below (note that the code below is the same as that from the [previous section](#time), with some modifications). Instead of 20 time steps, I will only simulate 10 for now. I will also, arbitrarily, choose to model birth as occurring after movement in the population. 
+
+```{r}
+ts         <- 0;
+time_steps <- 10;
+inds_hist  <- NULL;
+while(ts < time_steps){
+    inds            <- movement(inds);
+    inds            <- birth(inds);
+    ts              <- ts + 1; 
+    inds_hist[[ts]] <- inds;
+}
+```
+
+The above has effectively simulated unrestricted population growth; individuals do not even die. Hence, even with a fairly low birth rate, by the end of the simulation there are `r dim(inds)[1]` total individuals in the population. This is already too many individuals to print the entire array, but we can at least plot the abundance of individuals over time. Recall how we looped through the list `inds_hist` in [the previous section](#time) to pull out the location of the first individual in each time step. We can do the same for pulling out abundance of individuals (number of rows in the array) for each time step.
+
+```{r}
+ind_abund <- array(data = NA, dim = c(10, 2));
+for(i in 1:10){
+    ind_abund[i, 1] <- i;                      # Save the time step
+    ind_abund[i, 2] <- dim(inds_hist[[i]])[1]; # rows in inds_hist[[i]]
+}
+colnames(ind_abund) <- c("time_step", "abundance");
+print(ind_abund);
+```
+
+We can see from the table above that the population size is increasing exponentially. If we were to run too many time steps, we might risk simulating more individuals than the memory of our computer can store, ultimately causing a crash. This is obviously a problem computationally, but it is also biologically unrealistic. We need some sort of density regulation in the population. In the next section, we will apply a new rule to model individual death.
+
+<a name="death">Simulating individual death</a>
+================================================================================
+
+We can simulate individual death similarly to individual reproduction. Here though, because we want death to be density dependent, the probability of individual death needs to somehow be related to total population abundance. There are several reasonable ways to do model death in this way. For example, we could write function that checks population abundance, assigns the probability of individual death based on some carrying capacity, then realises death by a Bernoulli trial (sampling a 0 or 1) using that assigned probability (i.e., as total abundance increases, each individual's probability of dying also increases, and we sample each individual's survival versus mortality from this probability to see if they make it into the next time step using something like `rbinom`). Another, simpler, option is to relate mortality to the number of individuals on a landscape cell.
+
+Suppose we assume that each landscape cell has enough resources to feed one individual for one time step. We might then write a function `death` that causes mortality whenever there is more than one individual on the same landscape cell. Because there are $8 \times 8 = 64$ total landscape cells, the maximum possible population size of would then be 64. This would control the population size in a biologically intuitive way. To get started, I will reinitialise some individuals below, this time with another column added, which will represent mortality.
+
+```{r}
+inds           <- array(data = 0, dim = c(5, 5));
+colnames(inds) <- c("body_mass", "x_loc", "y_loc", "repr", "death");
+rownames(inds) <- c("ind_1", "ind_2", "ind_3", "ind_4", "ind_5");
+inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+```
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+Writing a function for mortality will be a bit more challenging that writing a function for birth. The code here will need to loop through each landscape cell, check to see how many individuals are on the cell, and if there is more than one individual on the cell, to select only one individual to survive. 
+
+```{r}
+death <- function(inds, xlen = 8, ylen = 8, dcol = 5, xcol = 2, ycol = 3){
+    for(xdim in 1:xlen){      # For each row `xdim` of the landscape...
+        for(ydim in 1:ylen){  # For each col `ydim` of the landscape...
+            # Get the total number of individuals on the landscape cell
+            on_cell <- sum( inds[, xcol] == xdim & inds[, ycol]  == ydim);
+            # Only do something if on_cell is more than one
+            if(on_cell > 1){
+                # Get all of the occupants on the cell
+                occupants <- which(inds[, xcol] == xdim & inds[, ycol] == ydim);
+                # Sample all but one random occupants to die
+                rand_occ  <- sample(x = occupants, size = on_cell - 1);
+                # Then add their death to the last column of inds
+                inds[rand_occ, dcol] <- 1;
+            }
+        }
+    }
+    return(inds);
+}
+```
+
+I have used a few tricks of R to keep the code short here, but I want to walk the reader through what is happening. As already mentioned, the double four loop cycles through each cell of the landscape. The outer loop goes through each x location from 1 to `ylen` (default value of 8). For each x location, the other loop goes through each y location (so first `x = 1` and `y = 1`, then `x = 1` and `y = 2`, and so forth until we get to `x = 2` and `y = 1`, then `x = 2` and `y = 2`, etc.). The line returning `on_cell` gets the total number of individuals that have an x location of `xdim` and a y location of `ydim`. If this number is more than one, then mortality needs to happen. The line returning `occupants` finds the individuals on the cell of interest using the `which` function in R, then the `sample` function is used to sample all but one of these individuals (sampling without replacement). In each case, `occupants` and `rand_occ` are vectors of numbers identifying individuals, and these numbers correspond to the individuals' rows. Hence individuals in the rows `rand_occ` will die, so we add a 1 to the death column. 
+
+To test this function, we can set individuals 2 and 3 to have the same location as individual 1. If the function is working, then only one of these individuals should survive after running the function `death`.
+
+```{r}
+inds[2, 2] <- inds[1, 2]; # Individiual 2 now in same x location as 1
+inds[2, 3] <- inds[1, 3]; # Individiual 2 now in same x location as 1
+inds[3, 2] <- inds[1, 2]; # Individiual 3 now in same x location as 1
+inds[3, 3] <- inds[1, 3]; # Individiual 3 now in same x location as 1
+```
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+We can now run `death` below, then print `inds` again.
+
+```{r}
+inds <- death(inds = inds);
+print(inds);
+```
+
+Note that two of the individuals above are dead (ones in column 5), and the rest have survived (zeros in column 5). We can retain the living individuals using the code below.
+
+```{r}
+inds <- inds[inds[, 5] == 0,]; # Retains individuals that did not die
+print(inds);
+```
+
+We can now include the `death` function to simulate a population with movement, birth, and death.
+
+```{r}
+# ----- Initialise individuals
+inds           <- array(data = 0, dim = c(5, 5));
+colnames(inds) <- c("body_mass", "x_loc", "y_loc", "repr", "death");
+rownames(inds) <- c("ind_1", "ind_2", "ind_3", "ind_4", "ind_5");
+inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+# ---- Start the simulation as before
+ts         <- 0;
+time_steps <- 10;
+inds_hist  <- NULL;
+while(ts < time_steps){
+    inds            <- movement(inds);
+    inds            <- birth(inds, ind_cols = dim(inds)[2]);
+    inds            <- death(inds);
+    inds            <- inds[inds[, 5] == 0,]; # Retain living
+    ts              <- ts + 1; 
+    inds_hist[[ts]] <- inds;
+}
+```
+
+This is a working individual-based model. 
 
 
 References
@@ -373,4 +560,5 @@ References
 
 [^1]: This has happened to me once, on accident, when coding [an IBM for plant-pollinator-exploiter interactions](https://github.com/bradduthie/Duthie_and_Falcy_2013) [@Duthie2013]. While testing my code, I had been printing off the locations of all individuals in the IBM to a text file. Later, upon running a large number of simulations, I noticed that my computer was slowing down quite a bit. Soon, a warning message came up that there was no more space to write to my hard drive. Because I had forgotten to stop printing all individual locations to the text file, every new location of millions of individuals was being recorded. The text file was well over 150 gigabytes when I forced the simulations to terminate, then removed the bit of code that printed individual locations.
 
+[^2]: For large IBMs, I feel obliged to point out that `rbind` can be very slow due to the way that memory is managed in R. If simulations start slowing down too much, it is best to refactor the code to avoid using `rbind` (or `cbind`). I only use it in the example here because it is a very convenient single line solution for binding two rows of an array together, and I do not want to get overwhelmed in the details of coding techniques for maximising efficiency.
 
