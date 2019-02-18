@@ -24,6 +24,7 @@ Contents
 5. [Simulating individual birth](#birth)
 6. [Simulating individual death](#death)
 7. [Predator-prey dynamics](#predators)
+8. [Putting it all together](#synthesis)
 
 ********************************************************************************
 
@@ -737,11 +738,12 @@ Note that two predators have reproduced; each of these predators was on a cell w
 If we are confident that the `predation` function is working as intended, we can now include it into the simulation to model the dynamics of predators and prey over time.
 
 
-
 <a name="synthesis">8. Putting it all together</a>
 ================================================================================
 
+Having coded functions for [movement](#move), [birth](#birth), [death](#death), and [predation](#predators), we can now put all of these processes together to simulate a predator-prey system. The code for simulating these processes will build off of some of the code above, as I introduced originally to [simulate individual movement over time](#time) and most recently reconsidered when considering the order of predation in the [previous section](#predators). All that we need to add is the initialisation of predators, the inclusion of predator movement predation in each time step, and the recording of the predator array over time steps. 
 
+In the code below, 40 individuals are initialised; the high number ensures that there are enough prey to sustain the predator population. The predator abundance is initialised at five, and both prey and predators are randomly placed on the landscape. Within the `while` loop below, we now include predator movement (`movement(pred)`) and predation (`predation(pred = pred, inds = inds)`). The list `pred_hist` now stores the `pred` array in each time step, as is done for the `inds` array, so that we can reconstruct predator movement and abundances over time. Hence, by running the code below, we can analyses both `inds_hist` and `pred_hist` to understand predator-prey dynamics (note that the below code will sometimes lead to predator or prey extinction, causing an error in R; we do not have a rule for what happens if extinctions occurs, but it would be useful to think of one to avoid having to deal with error messages).
 
 ```{r}
 # ----- Initialise individuals (prey)
@@ -749,20 +751,20 @@ inds           <- array(data = 0, dim = c(40, 5));
 inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
 inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
 inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
-# ----- Initialise individuals (prey)
-pred           <- array(data = 0, dim = c(5, 5));
+# ----- Initialise individuals (predator)
+pred           <- array(data = 0, dim = c(20, 5));
 pred[,1]       <- rnorm(n = dim(pred)[1], mean = 23, sd = 3);
 pred[,2]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
 pred[,3]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
 # ---- Start the simulation as before
 ts         <- 0;
-time_steps <- 20;
+time_steps <- 40;
 inds_hist  <- NULL;
 pred_hist  <- NULL;
 while(ts < time_steps){
     pred            <- movement(pred);
-    inds            <- movement(inds);
-    inds            <- birth(inds, ind_cols = dim(inds)[2], lambda = 2);
+    inds            <- movement(inds); # Note: I increased prey birth rate
+    inds            <- birth(inds, ind_cols = dim(inds)[2], lambda = 1.5);
     pred_prey_res   <- predation(pred = pred, inds = inds);
     pred            <- pred_prey_res$pred;
     inds            <- pred_prey_res$inds;
@@ -774,21 +776,38 @@ while(ts < time_steps){
 }
 ```
 
-```{r}
-print(inds);
-print(pred);
-```
+We could look at any time step in `inds_hist` and `pred_hist`. For example, if we wanted to see predators in the tenth time step, then we could type `pred_hist[[10]]` in the R console. Instead, suppose what we are really interested in is how predator and prey population abundances change over time. We can loop through `inds_hist` and `pred_hist` in the same way that we did with just `inds_hist` before to gather population abundance prior to including predators. Now, however, we need to include a column in the summary array (`ind_abund`) that includes predator abundance. The code below will generate a new array with three columns. Column 1 will show the time step, column 2 will show prey abundance, and column 3 will show predator abundance.
 
 ```{r, eval = TRUE}
-ind_abund <- array(data = NA, dim = c(20, 3));
-for(i in 1:20){
+ind_abund <- array(data = NA, dim = c(40, 3));
+for(i in 1:40){
     ind_abund[i, 1] <- i;                      # Save the time step
     ind_abund[i, 2] <- dim(inds_hist[[i]])[1]; # rows in inds_hist[[i]]
-    ind_abund[i, 3] <- dim(pred_hist[[i]])[1]; # rows in inds_hist[[i]]
+    ind_abund[i, 3] <- dim(pred_hist[[i]])[1]; # rows in pred_hist[[i]]
 }
 colnames(ind_abund) <- c("time_step", "abundance", "predators");
 print(ind_abund);
 ```
+
+Note that there is an interesting pattern in the predator and prey dynamics. It seems that both the predator and prey oscillate from low abundance to high abundance. The plot below shows this oscillation more clearly
+
+```{r, echo = FALSE, fig.height = 6, fig.width = 6, fig.align = "center"}
+par(mar = c(5, 5, 1, 1));
+plot(x = ind_abund[,2], type = "l", lwd = 3, ylim = c(0, 80), 
+     xlab = "time step", ylab = "Population abundance", cex.axis = 1.5, 
+     cex.lab = 1.5);
+points(x = ind_abund[,3], type = "l", lwd = 3, col = "red");
+legend(x = 0, y = 80, legend = c("Predator", "Prey"), col = c("red", "black"),
+       cex = 1.25, lty = c("solid", "solid"), lwd = c(3, 3));
+```
+
+In the plot above, we see that predator and prey population abundances oscillate over time. As prey become more abundant, predator growth rate increases. As predators then become more common, prey abundance in turn starts to fall. Note that these oscillations are the same kinds of limit cycles [predicted by mathematical models](https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations#Solutions_to_the_equations) using Lotka-Volterra equations describing the change in predator ($y$) and prey ($x$) densities over time ($t$). 
+
+$$\frac{dx}{dt} = x(\alpha - \beta y),$$
+
+$$\frac{dy}{dt} = -y(\gamma-\delta x) .$$
+
+**But we have not used any of these equations when building our individual-based model!** We have not even set parameters such as $\alpha$, $\beta$, $\delta$, or $\gamma$ in the code. So what is going on here? The answer is that both models make similar biological assumptions -- similar enough to produce a similar oscillating patterns of predator-prey abundances (at least, for a subset of parameter values). For example, in both models, the growth rate of one population is tied to the density of the other population. Using different modelling techniques is often a useful way to address theoretical questions from slightly different perspectives using different biological assumptions [@Caswell1988].
 
 
 References
