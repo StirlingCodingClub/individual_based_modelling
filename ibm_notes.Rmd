@@ -17,21 +17,23 @@ Contents
 
 ********************************************************************************
 
-- [Introduction: What is an individual-based model (IBM)?](#intro)
-- [Getting started with IBMs in R](#Rstart)
-- [Movement of individuals on a landscape](#move)
-- [Simulating individual movement over time](#time)
-- [Simulating individual birth](#birth)
+1. [Introduction: What is an individual-based model (IBM)?](#intro)
+2. [Getting started with IBMs in R](#Rstart)
+3. [Movement of individuals on a landscape](#move)
+4. [Simulating individual movement over time](#time)
+5. [Simulating individual birth](#birth)
+6. [Simulating individual death](#death)
+7. [Predator-prey dynamics](#predators)
 
 ********************************************************************************
 
-<a name="intro">Introduction: What is an individual-based model?</a>
+<a name="intro">1. Introduction: What is an individual-based model?</a>
 ================================================================================
 
 
 - Note that the code here is not optimised for efficiency. It is written to be as easy to learn as possible.
 
-<a name="initialise">Getting started with IBMs in R</a>
+<a name="initialise">2. Getting started with IBMs in R</a>
 ================================================================================
 
 In an IBM, discrete individuals are represented by some sort of data structure in code (e.g., a list, table, array, or potentially some type of customised structure). There are several possible ways to do this, and the way that works best is probably most often a matter of the modeller's preference and the coding language that they are using. In R, there are a few possibilities, but I usually find the most intuitive way to model individuals is using a data table or array. For example, we can think about a two dimensional array as modelling a population of individuals, with rows representing discrete individuals and columns representing those individuals' characteristics ('characteristic' is not a technical term here; I am loosely defining it to mean anything that relates to the individual in some way). The code below creates a two dimensional data array (`inds`) to model five individuals that have three characteristics each.
@@ -120,7 +122,7 @@ plot(x = inds[,2], y = inds[,3], pch = 20, cex = 4, xlim = c(1, 8),
 
 This is really all that is needed to get started. It is, of course, possible to add any number of individuals (rows) or individual characteristics (columns). And it is not necessary to model body mass or even spatial location if these are not useful characteristics for modelling the system of interest. What matters is that we have a discrete number of individuals with some set of characteristics that are relevant for whatever question it is that we want to answer. These individuals and characteristics will change over the course of simulating an IBM according to whatever rules we specify. This can include rules for movement, mating, birth, death, or anything else that we might think is important to model in the system. In the next section, we can consider some simple rules for individual movement.
 
-<a name="move">Movement of individuals on a landscape</a>
+<a name="move">3. Movement of individuals on a landscape</a>
 ================================================================================
 
 Each of the individuals we initialised in the [previous section](#initialise) has an x and y location on the landscape. To model individual movement, we need to come up with some rule for how these locations change. The simplest model of movement is to allow individuals to increase or decrease their x and y locations by 1 cell, so `ind_1` with an x location of `r inds[1,2]` might move along the x axis to a new x location of `r inds[1,2] + 1` or `r inds[1,2] - 1`. The individual might likewise move up or down one cell on the y axis. To model random movement to any of the eight cells surrounding a focal individual's current location (also allowing diagonal movement), we can sample two random integer values from the set $\{-1, 0, 1\}$ with replacement and equal probability. One value is for the x location, and the other is for the y location. Movement is modelled by adding each value to the current x and y locations; the code below moves `ind_1` in the first row of `inds`.
@@ -238,7 +240,7 @@ print(inds);
 Now that we have some code that has been tested and works as intended, we can use it to simulate the movement of individuals over multiple time steps. I will show how to do this in the next section.
 
 
-<a name="time">Simulating individual movement over time</a>
+<a name="time">4. Simulating individual movement over time</a>
 ================================================================================
 
 To simulate the movement of our individuals over time, we now need to call the `movement` function that we wrote in [the previous section](#move) multiple times. We can define the total number of time steps to simulate over below.
@@ -367,7 +369,7 @@ print(ind1_locs);
 
 The array above shows the full path of individual 1 from x location `r ind1_locs[1,2]` and y location `r ind1_locs[1,3]` to x location `r ind1_locs[20,2]` and y location `r ind1_locs[20,3]`. We could do the same for any number of individuals in the model, if desired, and for any number of time steps. We therefore have a working model of individual movement within a confined area of landscape. In the next section, we will add some more biological realism by creating a new rule and function for modelling individual births in the population.
 
-<a name="birth">Simulating individual birth</a>
+<a name="birth">5. Simulating individual birth</a>
 ================================================================================
 
 To simulate birth in our population of individuals, we need some rule to determine when an individual reproduces. As a simplifying assumption, let as assume that all individuals in our model are female, and that the number of birth events for an individual $B_{i}$ is sampled from a Poisson distribution with 0.5 expected offspring per year,
@@ -455,7 +457,7 @@ print(ind_abund);
 
 We can see from the table above that the population size is increasing exponentially. If we were to run too many time steps, we might risk simulating more individuals than the memory of our computer can store, ultimately causing a crash. This is obviously a problem computationally, but it is also biologically unrealistic. We need some sort of density regulation in the population. In the next section, we will apply a new rule to model individual death.
 
-<a name="death">Simulating individual death</a>
+<a name="death">6. Simulating individual death</a>
 ================================================================================
 
 We can simulate individual death similarly to individual reproduction. Here though, because we want death to be density dependent, the probability of individual death needs to somehow be related to total population abundance. There are several reasonable ways to do model death in this way. For example, we could write function that checks population abundance, assigns the probability of individual death based on some carrying capacity, then realises death by a Bernoulli trial (sampling a 0 or 1) using that assigned probability (i.e., as total abundance increases, each individual's probability of dying also increases, and we sample each individual's survival versus mortality from this probability to see if they make it into the next time step using something like `rbinom`). Another, simpler, option is to relate mortality to the number of individuals on a landscape cell.
@@ -527,7 +529,7 @@ inds <- inds[inds[, 5] == 0,]; # Retains individuals that did not die
 print(inds);
 ```
 
-We can now include the `death` function to simulate a population with movement, birth, and death.
+We can now include the `death` function to simulate a population with movement, birth, and death. The code below simulates a population over 20 time steps.
 
 ```{r}
 # ----- Initialise individuals
@@ -539,7 +541,7 @@ inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
 inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
 # ---- Start the simulation as before
 ts         <- 0;
-time_steps <- 10;
+time_steps <- 20;
 inds_hist  <- NULL;
 while(ts < time_steps){
     inds            <- movement(inds);
@@ -551,8 +553,33 @@ while(ts < time_steps){
 }
 ```
 
-This is a working individual-based model. 
+This is now a working individual-based model. We have incorporated the biological processes of movement, births, and deaths to simulate a discrete population over time. We can use the same code as from the [previous section](#birth) to summarise how population abundance has changed over time.
 
+
+```{r}
+ind_abund <- array(data = NA, dim = c(20, 2));
+for(i in 1:20){
+    ind_abund[i, 1] <- i;                      # Save the time step
+    ind_abund[i, 2] <- dim(inds_hist[[i]])[1]; # rows in inds_hist[[i]]
+}
+colnames(ind_abund) <- c("time_step", "abundance");
+print(ind_abund);
+```
+
+Compare the population abundances here with those from the [previous section](#birth). By adding death to our model, and allowing only one individual to survive per cell, the size of the simulated population is no longer increasing exponentially. We can take a look at the individuals on the simulated landscape below.
+
+```{r, echo = FALSE, fig.height = 6, fig.width = 6, fig.align = "center"}
+plot(x = inds[,2], y = inds[,3], pch = 20, cex = 4, xlim = c(1, 8),
+     ylim = c(1, 8), xlab = "x location", mar = c(5, 5, 1, 1),
+     ylab = "y location", cex.lab = 1.5, cex.axis = 1.5);
+```
+
+Notice that the entire landscape has not filled up. Since newly born individuals are placed at random on the landscape, and individuals also move randomly, it is unlikely that the landscape will become saturated with individuals. We have effectively simulated a process of intra-specific competition; that is, competition among individuals within the same species for a limiting resource (space, in this case, in the form of landscape cells). If we wanted to investigate intra-specific competition more closely, we could change some of the assumptions of our IBM. Such assumptions could include the size of the landscape, the number individuals that could survive on the same landscape cell, or perhaps how individuals move from cell to cell (e.g., to avoid competition). We could also add new biological processes using the current code as a starting point. For example, we might be interested in how body mass evolves as a consequence of intra-specific competition. To investigate this, we would need to make `body_mass` heritable in our model (i.e., make offspring `body_mass` more similar to parent `body_mass` than expected by chance, probably by adding some code in the `birth` function), and we would need to have some rule relating `body_mass` to the outcome of intra-specific competition (e.g., by making individuals with high `body_mass` more likely to survive than individuals with low `body_mass`, probably by adding some code in the `death` function). These are good exercises to try, and I encourage the reader to try making modifications like this to practice coding IBMs.
+
+Having a working population of individuals, there is one more exercise that I want to present. In the next section, I will demonstrate how we can use a second array to model a population of predators on `inds`.  And by the end of the next section, we will have a working model of predator-prey dynamics on a spatially explicit landscape.
+
+<a name="predators">7. Predator-prey dynamics</a>
+================================================================================
 
 References
 ================================================================================
