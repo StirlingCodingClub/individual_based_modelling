@@ -289,7 +289,7 @@ movement <- function(inds, xloc = 2, yloc = 3, xmax = 8, ymax = 8){
         if(inds[i, xloc] < 1){            # If it moved below 1 on xloc
             inds[i, xloc] <- 2;           # Move it toward the centre (2)
         }
-        if(inds[i, yloc] == ymax){        # If it moved passed the maximum yloc
+        if(inds[i, yloc] > ymax){        # If it moved passed the maximum yloc
             inds[i, yloc] <- ymax - 1;    # Then move it back toward the centre
         }
         if(inds[i, yloc] < 1){            # If it moved below 1 on yloc
@@ -580,6 +580,216 @@ Having a working population of individuals, there is one more exercise that I wa
 
 <a name="predators">7. Predator-prey dynamics</a>
 ================================================================================
+
+In this section, I will show how to write a simple model of predation. Much of the work has actually already been done. We already have data structures for individuals (an array), and functions for movement, birth, and death. We can use these same structures and functions for modelling predators, writing new code only where there is a meaningful difference between predators and prey. We can start with a new array `pred`, which is of the same format as `inds` and contains five predators.
+
+```{r}
+pred           <- array(data = 0, dim = c(5, 5));
+colnames(pred) <- c("body_mass", "x_loc", "y_loc", "repr", "death");
+rownames(pred) <- c("pred_1", "pred_2", "pred_3", "pred_4", "pred_5");
+pred[,1]       <- rnorm(n = dim(pred)[1], mean = 23, sd = 3);
+pred[,2]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
+pred[,3]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
+```
+
+```{r, echo = FALSE}
+print(pred);
+```
+
+Note that because the `pred` array is of the same structure as the `inds` array, all of the functions that we wrote (`movement`, `birth`, and `death`) could be equally well used for our predators. But because we are modelling predation, this might not always make sense. We might, for example, be willing to assume that predators move similarly as their prey, but want to model birth and death processes differently. It would be reasonable to assume that birth and death are both affected by how successful a predator is at acquiring prey, so perhaps we only want predators to survive and breed if they have eaten some fixed number of times. For simplicity, I will assume that predators that eat at least one prey in `inds` survive to the next time step, while predators that eat two prey reproduce. I will further assume that predators cannot eat more than two prey in a time step, and that predators that fail to eat die. Note that given these assumptions, it is necessary to write new code to model predator birth and death, but before doing this, it is worth thinking about the order of operations in the code. That is, it will be useful to consider when predation will happen (e.g., at the start or end of a time step). Consider again the code from the previous section used to simulate individuals in the population.
+
+```{r, eval = FALSE}
+# ----- Initialise individuals
+inds           <- array(data = 0, dim = c(5, 5));
+colnames(inds) <- c("body_mass", "x_loc", "y_loc", "repr", "death");
+rownames(inds) <- c("ind_1", "ind_2", "ind_3", "ind_4", "ind_5");
+inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+# ---- Start the simulation as before
+ts         <- 0;
+time_steps <- 20;
+inds_hist  <- NULL;
+while(ts < time_steps){
+    inds            <- movement(inds);
+    inds            <- birth(inds, ind_cols = dim(inds)[2]);
+    inds            <- death(inds);
+    inds            <- inds[inds[, 5] == 0,]; # Retain living
+    ts              <- ts + 1; 
+    inds_hist[[ts]] <- inds;
+}
+```
+
+In the code above, individuals move, give birth, then die. And given the rules of individual mortality, only one individual, at most, is allowed per landscape cell at the end of a time step. Hence, if predation were to happen at the end of the time step, predators could not reproduce. Biologically, having predation happen after prey death as caused by density dependence might also not make much sense; why should the predators wait? A good argument could probably be made for having predators move and eat first in the time step (i.e., preceding individual movement, birth, and death within the `while` loop above), both on biological and modelling grounds. I do not want to dwell on this, but only point out that thinking about the order in which events occur in the IBM is important, and therefore should be considered carefully. It is often good to change the order of events to see how it affects simulation results. For now, I will assume that predators get to move, eat, and reproduce *after* prey give birth but *before* prey die. It is only at this point, between `birth` and `death` above, in which more than two individuals can exist on the same cell, so this is the only time that predators could possibly eat more than one prey item to reproduce.
+
+Predator movement is easy because we already have the `movement` function, and are content to assume that predators move in the same way as prey, potentially moving one landscape cell in any random direction. 
+
+```{r}
+pred <- movement(pred);
+```
+
+Birth and death requires a bit more work. We need a function that checks to see how many prey are located on a predator's landscape cell. If that number is zero, then the predator should die. If that number is greater than zero, then the predator should survive. And if that number is greater than one, then the predator should reproduce. We also need to make sure that the eaten prey are removed from `inds` so that they do not reproduce, or are tagged in some way so that they can be removed in the `death` function. 
+
+```{r}
+predation <- function(pred, inds, xcol = 2, ycol = 3, rcol = 4, dcol = 5){
+    predators   <- dim(pred)[1]; # Predator number
+    pred[, dcol] <- 1;           # Assume dead until proven otherwise
+    pred[, rcol] <- 0;           # Assume not reproducing until proven otherwise
+    for(p in 1:predators){       # For each predator (p) in the array
+        xloc   <- pred[p, xcol]; # Get the x and y locations
+        yloc   <- pred[p, ycol];
+        N_prey <- sum( inds[, xcol] == xloc & inds[, ycol] == yloc);
+        # ----- Let's take care of the predator first below
+        if(N_prey > 0){
+            pred[p, dcol] <- 0;  # The predator lives
+        }
+        if(N_prey > 1){
+            pred[p, rcol] <- 1;  # The predator reproduces
+        }
+        # ----- Now let's take care of the prey
+        if(N_prey > 0){ # If there are some prey, find them
+            prey <- which( inds[, xcol] == xloc & inds[, ycol] == yloc);
+            if(N_prey > 2){ # But if there are more than 2, just eat 2
+                prey <- sample(x = prey, size = 2, replace = FALSE);
+            }
+            inds[prey, dcol] <- 1; # Record the prey as dead
+        }
+    } # We now know which inds died, and which prey died & reproduced
+    # ---- Below removes predators that have died
+    pred         <- pred[pred[,dcol] == 0,] # Only survivors now left
+    # ----- Below adds new predators based on the reproduction above    
+    pred_off     <- sum(pred[, rcol]);
+    new_pred     <- array(data = 0, dim = c(pred_off, dim(pred)[2]));
+    new_pred[,1] <- rnorm(n = dim(new_pred)[1], mean = 23, sd = 3);
+    new_pred[,2] <- sample(x = 1:8, size = dim(new_pred)[1], replace = TRUE);
+    new_pred[,3] <- sample(x = 1:8, size = dim(new_pred)[1], replace = TRUE);
+    pred         <- rbind(pred, new_pred);
+    # ----- Now let's remove the prey that were eaten
+    inds         <- inds[inds[,dcol] == 0,]; # Only living prey left
+    # Now need to return *both* the predator and prey arrays
+    pred_prey <- list(pred = pred, inds = inds);
+    return(pred_prey);
+}
+```
+
+That is a lot of code, but at the end of all of it, we should have what we want. Predator and prey arrays go into the function. Predators that do not feed and therefore die are removed from their array (`pred`), while predators that feed and reproduce add a new offspring to the array. Prey are removed from their array (`inds`) if they are eaten. Note that, for the first time, we need to return more than one array. Both the `inds` and the `pred` array are changed in the function above, so a list is returned with both arrays as list elements. To access each of these elements, we can use `pred_prey$pred` and `pred_prey$inds` for predators and prey, respectively. 
+
+To test the function written above, we can put some individuals and predators down in a known location, then check to see that predation has happened as intended. I will initialise a new `inds` with six total individuals: three individuals at $x = 1$, $y = 1$, two individuals at $x = 2$, $y = 1$, and one individual at $x = 3$, $y = 1$.
+
+```{r}
+inds           <- array(data = 0, dim = c(6, 5));
+colnames(inds) <- c("body_mass", "x_loc", "y_loc", "repr", "death");
+inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[1:3, 2]   <- 1; # x location
+inds[1:3, 3]   <- 1; # y location
+inds[4:5, 2]   <- 2; 
+inds[4:5, 3]   <- 1; 
+inds[6, 2]     <- 3; 
+inds[6, 3]     <- 1; 
+```
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+Now, I will add a single predator to each of four locations.
+
+```{r}
+pred           <- array(data = 0, dim = c(4, 5));
+colnames(pred) <- c("body_mass", "x_loc", "y_loc", "repr", "death");
+pred[,1]       <- rnorm(n = dim(pred)[1], mean = 23, sd = 3);
+pred[1, 2]     <- 1; # x location
+pred[1, 3]     <- 1; # y location
+pred[2, 2]     <- 2;
+pred[2, 3]     <- 1;
+pred[3, 2]     <- 3;
+pred[3, 3]     <- 1;
+pred[4, 2]     <- 4;
+pred[4, 3]     <- 1;
+```
+
+```{r, echo = FALSE}
+print(pred);
+```
+
+We now see that there are four occupied landscape cells, each with a single predator. Based on the rules that we specified in the function `predation` above, we can predict what will happen on each of these cells as a consequence of the local abundance of prey. The code below runs the function, then stores the new arrays back into `inds` and `prey`.
+
+```{r}
+pred_prey <- predation(inds = inds, pred = pred);
+inds      <- pred_prey$inds;
+pred      <- pred_prey$pred;
+```
+
+Here is what the individual array now looks like.
+
+```{r, echo = FALSE}
+print(inds);
+```
+
+There is only one surviving prey. This is the prey on the landscape cell $x = 1$, $y = 1$, which started out with three individuals on which two other individuals were eaten by the predator. All other individuals were eaten because they occupied cells with two or fewer other individuals. Below is what the predator array now looks like.
+
+```{r, echo = FALSE}
+print(pred);
+```
+
+Note that two predators have reproduced; each of these predators was on a cell with two or more individuals that became prey. The predator on the cell with only one individual ($x = 3$, $y = 1$) survived but did not reproduce, while the predator on the cell with no individuals did not survive ($x = 4$, $y = 1$). Note that there are also newly born predators in `pred` above (rows 4 and 5), as was expected. 
+
+If we are confident that the `predation` function is working as intended, we can now include it into the simulation to model the dynamics of predators and prey over time.
+
+
+
+<a name="synthesis">8. Putting it all together</a>
+================================================================================
+
+
+
+```{r}
+# ----- Initialise individuals (prey)
+inds           <- array(data = 0, dim = c(40, 5));
+inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+# ----- Initialise individuals (prey)
+pred           <- array(data = 0, dim = c(5, 5));
+pred[,1]       <- rnorm(n = dim(pred)[1], mean = 23, sd = 3);
+pred[,2]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
+pred[,3]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
+# ---- Start the simulation as before
+ts         <- 0;
+time_steps <- 20;
+inds_hist  <- NULL;
+pred_hist  <- NULL;
+while(ts < time_steps){
+    pred            <- movement(pred);
+    inds            <- movement(inds);
+    inds            <- birth(inds, ind_cols = dim(inds)[2], lambda = 2);
+    pred_prey_res   <- predation(pred = pred, inds = inds);
+    pred            <- pred_prey_res$pred;
+    inds            <- pred_prey_res$inds;
+    inds            <- death(inds);
+    inds            <- inds[inds[, 5] == 0,]; # Retain living
+    ts              <- ts + 1; 
+    inds_hist[[ts]] <- inds;
+    pred_hist[[ts]] <- pred;
+}
+```
+
+```{r}
+print(inds);
+print(pred);
+```
+
+```{r, eval = TRUE}
+ind_abund <- array(data = NA, dim = c(20, 3));
+for(i in 1:20){
+    ind_abund[i, 1] <- i;                      # Save the time step
+    ind_abund[i, 2] <- dim(inds_hist[[i]])[1]; # rows in inds_hist[[i]]
+    ind_abund[i, 3] <- dim(pred_hist[[i]])[1]; # rows in inds_hist[[i]]
+}
+colnames(ind_abund) <- c("time_step", "abundance", "predators");
+print(ind_abund);
+```
+
 
 References
 ================================================================================
