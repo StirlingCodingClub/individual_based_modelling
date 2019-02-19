@@ -25,6 +25,8 @@ Contents
 6. [Simulating individual death](#death)
 7. [Predator-prey dynamics](#predators)
 8. [Putting it all together](#synthesis)
+9. [Conclusions](#conclusions)
+10. [Appendix with all code](#all)
 
 ********************************************************************************
 
@@ -37,7 +39,7 @@ Contents
 <a name="initialise">2. Getting started with IBMs in R</a>
 ================================================================================
 
-In an IBM, discrete individuals are represented by some sort of data structure in code (e.g., a list, table, array, or potentially some type of customised structure). There are several possible ways to do this, and the way that works best is probably most often a matter of the modeller's preference and the coding language that they are using. In R, there are a few possibilities, but I usually find the most intuitive way to model individuals is using a data table or array. For example, we can think about a two dimensional array as modelling a population of individuals, with rows representing discrete individuals and columns representing those individuals' characteristics ('characteristic' is not a technical term here; I am loosely defining it to mean anything that relates to the individual in some way). The code below creates a two dimensional data array (`inds`) to model five individuals that have three characteristics each.
+In an IBM, discrete individuals are represented by some sort of data structure in code (e.g., a list, table, array, or potentially some type of customised structure). There are several possible ways to do this, and the way that works best is probably most often a matter of the modeller's preference and the coding language that they are using. In R, there are a few possibilities, but I usually find that the most intuitive way to model individuals is using a data table or array. For example, we can think about a two dimensional array as modelling a population of individuals, with rows representing discrete individuals and columns representing those individuals' characteristics ('characteristic' is not a technical term here; I am loosely defining it to mean anything that relates to the individual in some way). The code below creates a two dimensional data array (`inds`) to model five individuals that have three characteristics each.
 
 ```{r}
 inds           <- array(data = 0, dim = c(5, 3));
@@ -48,7 +50,7 @@ print(inds);
 
 The row and column names are not required, but I have included them to make it easier to refer back to individuals and their characteristics. I have initialised all individual characteristics with a value of zero because it is still undecided what characteristics are actually being modelled. Characteristics can be anything we want them to be, from phenotypic traits, to alleles, to spatial locations, to some sort of temporary status (e.g., feeding or not feeding). The whole `inds` array is like a data set in which some number of measurements (columns) have been taken for some number of individuals (rows), except that we can make these measurements up to be whatever we want them to be, and manipulate them according to whatever rules we want to model. The objective is to carefully choose a set of characteristics and rules that model whatever biological process it is that we are trying to better understand.
 
-We can start with some very simple individual characteristics. Assume that we want to model a population of animals moving around a landscape, and we want to include animal body mass and location as characteristics. We can use use 'characteristic_1' in column 1 to randomly assign each individual a body mass according to some selected distribution, while 'characteristic_2' in column 2 and 'characterist_3' in column 3 can be assigned random x and y locations, respectively. I will change the columns to reflect the new modelling decision for individual characteristics below.
+We can start with some very simple individual characteristics. Assume that we want to model a population of animals moving around a landscape, and we want to include animal body mass and location as characteristics. We can use 'characteristic_1' in column 1 to randomly assign each individual a body mass according to some selected distribution, while 'characteristic_2' in column 2 and 'characteristic_3' in column 3 can be assigned random x and y locations, respectively. I will change the columns to reflect the new modelling decision for individual characteristics below.
 
 ```{r}
 colnames(inds) <- c("body_mass", "x_loc", "y_loc");
@@ -57,10 +59,10 @@ colnames(inds) <- c("body_mass", "x_loc", "y_loc");
 Let us say that body mass is normally distributed around a value of 23 with a standard deviation of 3. If it helps the reader to have a concrete example in mind to visualise, this is roughly the body mass distribution in kilograms of female [roe deer](https://en.wikipedia.org/wiki/Roe_deer) [@Pettorelli2002]. Nevertheless, it is usually not important to have any particular species in mind unless the model is being constructed to address a very targeted question. We can give each individual a body mass randomly sampled from $\mathcal{N}(23, 3)$ with the code below.
 
 ```{r}
-inds[,1] <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[, 1] <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
 ```
 
-Note that `dim(inds)` returns the dimensions of the array `inds` where element 1 (i.e., `dim(inds)[1]`) is the number of rows (`r dim(inds)[1]` in this case) and element 2 is the number of columns (`r dim(inds)[2]` in this case). Also note that that in the code above, `inds[, 1]` returns all of the values in column 1; it is the same as if we had typed `inds[1:5, 1]`. Each individual in the array is now modelled with a unique body mass in the first column.
+Note that `dim(inds)` returns the dimensions of the array `inds` where element 1 (i.e., `dim(inds)[1]`) is the number of rows (`r dim(inds)[1]` in this case) and element 2 is the number of columns (`r dim(inds)[2]` in this case). Also note that that in the code above, `inds[, 1]` includes all of the values in column 1; it is the same as if I had typed `inds[1:5, 1]`. Each individual in the array is now modelled with a unique body mass in the first column.
 
 ```{r, echo = FALSE}
 print(inds);
@@ -85,8 +87,8 @@ for(i in 1:8){
 We do not actually need to code this grid to model individual locations or movement, but it might help to think of each individual in our model as occupying some square (i.e., 'cell') on the grid above. This is just one way to model individual position on a spatially explicit landscape, but it is often especially useful because it allows us to use natural numbers to define how far away individuals are from one another (number of cells away), and when individuals occupy the exact same location. We can now set individual x and y locations into columns 2 and 3, respectively, by sampling from a vector of numbers 1 to 8 with replacement (sampling with replacement ensures that more than one individual can occupy the same x or y location).
 
 ```{r, echo = TRUE}
-inds[,2] <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
-inds[,3] <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[, 2] <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[, 3] <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
 ```
 
 ```{r, echo = FALSE}
@@ -121,12 +123,12 @@ plot(x = inds[,2], y = inds[,3], pch = 20, cex = 4, xlim = c(1, 8),
      ylab = "y location", cex.lab = 1.5, cex.axis = 1.5);
 ```
 
-This is really all that is needed to get started. It is, of course, possible to add any number of individuals (rows) or individual characteristics (columns). And it is not necessary to model body mass or even spatial location if these are not useful characteristics for modelling the system of interest. What matters is that we have a discrete number of individuals with some set of characteristics that are relevant for whatever question it is that we want to answer. These individuals and characteristics will change over the course of simulating an IBM according to whatever rules we specify. This can include rules for movement, mating, birth, death, or anything else that we might think is important to model in the system. In the next section, we can consider some simple rules for individual movement.
+This is really all that is needed to get started. It is, of course, possible to add any number of individuals (rows) or individual characteristics (columns). And it is not necessary to model body mass or even spatial location if these are not useful characteristics for modelling the system of interest. What matters is that we have a discrete number of individuals with some set of characteristics that are relevant for whatever question it is that we want to answer. These individuals and characteristics will change over the course of simulating an IBM according to whatever rules we specify. This can include rules for movement, birth, death, or anything else that we might think is important to model in the system. In the next section, I consider some simple rules for individual movement.
 
 <a name="move">3. Movement of individuals on a landscape</a>
 ================================================================================
 
-Each of the individuals we initialised in the [previous section](#initialise) has an x and y location on the landscape. To model individual movement, we need to come up with some rule for how these locations change. The simplest model of movement is to allow individuals to increase or decrease their x and y locations by 1 cell, so `ind_1` with an x location of `r inds[1,2]` might move along the x axis to a new x location of `r inds[1,2] + 1` or `r inds[1,2] - 1`. The individual might likewise move up or down one cell on the y axis. To model random movement to any of the eight cells surrounding a focal individual's current location (also allowing diagonal movement), we can sample two random integer values from the set $\{-1, 0, 1\}$ with replacement and equal probability. One value is for the x location, and the other is for the y location. Movement is modelled by adding each value to the current x and y locations; the code below moves `ind_1` in the first row of `inds`.
+Each of the individuals that we initialised in the [previous section](#initialise) has an x and y location on the landscape. To model individual movement, we need to come up with some rule for how these locations change. The simplest model of movement is to allow individuals to increase or decrease their x and y locations by 1 cell, so `ind_1` with an x location of `r inds[1,2]` might move along the x axis to a new x location of `r inds[1,2] + 1` or `r inds[1,2] - 1`. The individual might likewise move up or down one cell on the y axis. To model random movement to any of the eight cells surrounding a focal individual's current location (thereby also allowing diagonal movement), we can sample two random integer values from the set $\{-1, 0, 1\}$ with replacement and equal probability. One value is for the x location, and the other is for the y location. Movement is modelled by adding each value to the current x and y locations; the code below moves `ind_1` in the first row of `inds`.
 
 ```{r}
 x_move     <- sample(x = c(-1, 0, 1), size = 1);
@@ -183,13 +185,13 @@ for(i in 1:dim(inds)[1]){
 }
 ```
 
-We can now see their new positions in the data array columns 2 and 3, and compare the new values in these columns with the old one above to verify that individuals have indeed moved, at most, one cell in either direction.
+We can now see their new positions in the data array columns 2 and 3, and compare the new values in these columns with the old one above to verify that individuals have indeed moved, at most, one cell in any direction.
 
 ```{r, echo = FALSE}
 print(inds);
 ```
 
-We can see that the x and y locations have not changed by more than a single value. Double-checking code in this way is generally a very good idea at every step of the modelling process. It is very easy to overlook a coding error that might cause a much different rule than the one intended. To be especially vigilant, it is often a good idea to give each unique process in an IBM its own function. There are at least three benefits of coding this way. First, it will later allow us to test each process in the IBM independently, so that if one part of the model does not appear to be working as it should, then we can narrow down the problem more easily by checking each function. Second, it makes it easier to change the order of operations in our IBM (e.g., whether movement happens before, or after, mating, birth, or death processes). Third, it makes the code easier to read; rather than having to scan through all of the code at once to understand a model, we can break things down piece by piece (this will become clearer later). Below, I write a function to move individuals on the landscape according to the movement rules described above.
+We can see that the x and y locations have not changed by more than a single value. Double-checking code in this way is critical at every step of the modelling process. It is very easy to overlook a coding error that might cause a much different rule than the one intended. To be especially vigilant, it is often a good idea to give each unique process in an IBM its own function. There are at least three benefits of coding this way. First, it will later allow us to test each process in the IBM independently, so that if one part of the model does not appear to be working as it should, then we can narrow down the problem more easily by checking each function. Second, it makes it easier to change the order of operations in our IBM (e.g., whether movement happens before, or after, birth or death processes). Third, it makes the code easier to read; rather than having to scan through all of the code at once to understand a model, we can break things down piece by piece (this will become clearer later). Below, I write a function to move individuals on the landscape according to the movement rules described above. Note that the code is essentially the same as in the block above, but structured slightly differently to make it into a more readable function.
 
 ```{r}
 movement <- function(inds, xloc = 2, yloc = 3){
@@ -260,7 +262,7 @@ while(ts < time_steps){
 }
 ```
 
-The code above first sets the starting time step to a value of 0. Within the `while` loop, individuals in the `inds` array are moved, then the time step value is increased by one. The loop continues calling `movement` to move individuals until the condition in the while loop (`ts < time_steps`) is satisfied. After the loop is finished, individuals have moved ten times from their initial starting locations. Here is where they are located now.
+The code above first sets the starting time step to a value of 0. Within the `while` loop, individuals in the `inds` array are moved, then the time step value is increased by one. The loop continues calling `movement` to move individuals until the condition in the while loop (`ts < time_steps`) is satisfied. After the loop is finished, individuals have moved twenty times from their initial starting locations. Here is where they are located now.
 
 ```{r, echo = FALSE}
 print(inds);
@@ -270,9 +272,9 @@ The code appears to have worked, but there is a problem that we have not yet con
 
 1. Place them back onto the boundary edge (i.e., a sticky landscape edge).
 2. Change their direction at the boundary edge (i.e., a reflecting landsacpe edge).
-3. Have them move to the opposite side of the landscape (i.e., no a torus landscape with no edge)
+3. Have them move to the opposite side of the landscape (i.e., a torus landscape with no edge)
 
-In my experience, 3 is the most popular option, perhaps because it eliminates the problem of what to do with individuals that leave the edge of the landsacpe altogether (by making it so that no edge exists). For now, I will demonstrate a reflecting edge instead because it is slightly easier to code. To make individuals that move one cell past the boundary of the landscape instead move back one cell toward the centre of the landscape, we can add some new code to the `movement` function.
+In my experience, 3 is the most popular option, perhaps because it eliminates the problem of what to do with individuals that leave the edge of the landscape altogether by making it so that no edge exists. For now, I will demonstrate a reflecting edge instead because it is slightly easier to code. To make individuals that move one cell past the boundary of the landscape instead move back one cell toward the centre of the landscape, we can add some new code to the `movement` function.
 
 ```{r}
 movement <- function(inds, xloc = 2, yloc = 3, xmax = 8, ymax = 8){
@@ -283,14 +285,14 @@ movement <- function(inds, xloc = 2, yloc = 3, xmax = 8, ymax = 8){
     inds[, xloc] <- inds[, xloc] + x_move;
     inds[, yloc] <- inds[, yloc] + y_move;
     # =========   The reflecting boundary is added below
-    for(i in 1:total_inds){               # For each individual in the array
+    for(i in 1:total_inds){               # For each individual i in the array
         if(inds[i, xloc] > xmax){         # If it moved passed the maximum xloc
             inds[i, xloc] <- xmax - 1;    # Then move it back toward the centre
         }
         if(inds[i, xloc] < 1){            # If it moved below 1 on xloc
             inds[i, xloc] <- 2;           # Move it toward the centre (2)
         }
-        if(inds[i, yloc] > ymax){        # If it moved passed the maximum yloc
+        if(inds[i, yloc] > ymax){         # If it moved passed the maximum yloc
             inds[i, yloc] <- ymax - 1;    # Then move it back toward the centre
         }
         if(inds[i, yloc] < 1){            # If it moved below 1 on yloc
@@ -319,7 +321,7 @@ Here is what the newly initialised individuals in `inds` look like.
 print(inds);
 ```
 
-With our new movement function defined above, we can again simulate movement over ten time steps. This time, though, we should not see any individuals leaving the $8 \times 8$ grid.
+With our new movement function defined above, we can again simulate movement over twenty time steps. This time, though, we should not see any individuals leaving the $8 \times 8$ grid.
 
 ```{r}
 ts         <- 0;
@@ -333,16 +335,16 @@ print(inds);
 
 Individuals have now moved from their original locations after 20 time steps, but none of the individuals has an x or y location less than 1 or greater than 8, meaning that they are all still on the landscape. Hence, we now have a working IBM in which individuals move around randomly on an $8 \times 8$ grid. We have initialised five individuals with three characteristics, but as long as we have x and y locations stored in `inds` columns, we could always increase the number of individuals and characteristics in the model and add new rules (functions) within the above while loop. I will show how to do this in the next section, but before moving on, I want to first show some ways to keep track of what is already going on in our IBM.
 
-Note that in using the loop immediately above, we have successfully modelled animal movement over 20 time steps, but we have not retained any information about where each individual was located *within* these 20 time steps. We only know the x and y locations where the individuals started at `time_step = 0`, and where each of them ended at `time_step = 19`. This might not be a problem; perhaps the intervening locations do not really matter to us. Or maybe this would be too much information to store[^1]. But suppose that we actually wanted to record the locations of all of these individuals in each time step, and new that storing these data would not be an issue. Doing so would allow us to reconstruct the movement patterns of each individual and see how the whole population moves from time step 0 to time step 20. In R, we can do this easily by creating a new list and storing the `inds` array as a list element in each time step.
+Note that in using the loop immediately above, we have successfully modelled animal movement over 20 time steps, but we have not retained any information about where each individual was located *within* these 20 time steps. We only know the x and y locations where the individuals started at `time_step == 0`, and where each of them ended at `time_step == 19`. This might not be a problem; perhaps the intervening locations do not really matter to us. Or maybe this would be too much information to store[^1]. But suppose that we actually wanted to record the locations of all of these individuals in each time step, and knew that storing these data would not be an issue. Doing so would allow us to reconstruct the movement patterns of each individual and see how the whole population moves from time step 0 to time step 20. In R, we can do this easily by creating a new list and storing the `inds` array as a list element in each time step.
 
 ```{r}
 ts         <- 0;
 time_steps <- 20;
-inds_hist  <- NULL;
+inds_hist  <- NULL; # Here's the list
 while(ts < time_steps){
     inds            <- movement(inds);
     ts              <- ts + 1; 
-    inds_hist[[ts]] <- inds;
+    inds_hist[[ts]] <- inds; # Add to list
 }
 print(inds);
 ```
@@ -373,17 +375,17 @@ The array above shows the full path of individual 1 from x location `r ind1_locs
 <a name="birth">5. Simulating individual birth</a>
 ================================================================================
 
-To simulate birth in our population of individuals, we need some rule to determine when an individual reproduces. As a simplifying assumption, let as assume that all individuals in our model are female, and that the number of birth events for an individual $B_{i}$ is sampled from a Poisson distribution with 0.5 expected offspring per year,
+To simulate birth in our population of individuals, we need some rule to determine when an individual reproduces. As a simplifying assumption, let as assume that all individuals in our model are female, and that the number of birth events for an individual $B_{i}$ is sampled from a Poisson distribution with 0.5 expected offspring per time step (recall that a [Poisson distribution](https://en.wikipedia.org/wiki/Poisson_distribution) describes the number of events occurring over a fixed interval of time),
 
 $$B_{i} \sim Poisson(\lambda = 0.5).$$
 
-In R, we can sample some number of values $n$ from a Poisson distribution with a given rate parameter ($\lambda$) using the `rpois` function. If we wanted to sample for five individuals with $\lambda = 5$, we could therefore use the code below.
+In R, we can sample some number of values from a Poisson distribution with a given rate parameter ($\lambda$, defining both the mean and variance of the Poisson distribution) using the `rpois` function. If we wanted to sample for five individuals with $\lambda = 0.5$, we could therefore use the code below.
 
 ```{r}
 rpois(n = 5, lambda = 0.5);
 ```
 
-If we are simulating individual reproduction, however, there needs to be some place in the model to store these values. The simplest solution is to initialise our array of individuals (`inds`) with another column, representing the number of offspring an individual has at a given time step.
+If we are simulating individual reproduction, however, there needs to be some place in the model to store these values. The simplest solution is to initialise our array of individuals (`inds`) with another column, representing the number of offspring an individual has produced at a given time step.
 
 ```{r}
 inds           <- array(data = 0, dim = c(5, 4));
@@ -398,14 +400,15 @@ inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
 print(inds);
 ```
 
-We now have the extra column `repr` for individual reproduction. We could add some reproduction for each individual immediately by sampling from `rpois` to add values to the fourth column, but for now I will instead create a new function `birth` to both sample births for each individual and add the new offspring at the same time. In the `birth` function, each individual will first be assigned a number of offspring with `rpois`, then these new offspring will be added to the array `inds`.
+We now have the added column `repr` for individual reproduction. We could add some reproduction for each individual immediately by sampling from `rpois` to add values to the fourth column, but for now I will instead create a new function `birth` to both sample births for each individual and add the new offspring at the same time. In the `birth` function, each individual will first be assigned a number of offspring with `rpois`, then these new offspring will be added to the array `inds`.
 
 ```{r}
-birth <- function(inds, lambda = 0.5, repr_col = 4, ind_cols = 4){
+birth <- function(inds, lambda = 0.5, repr_col = 4){
     total_inds       <- dim(inds)[1]; # Get the number of individuals in inds
+    ind_cols         <- dim(inds)[2]; # Total inds columns
     inds[, repr_col] <- rpois(n = total_inds, lambda = lambda); 
     total_off        <- sum(inds[, repr_col]);
-    # ---- We now have the total number of new offspring, let's make them
+    # ---- We now have the total number of new offspring; now add to inds
     new_inds     <- array(data = 0, dim = c(total_off, ind_cols));
     new_inds[,1] <- rnorm(n = dim(new_inds)[1], mean = 23, sd = 3);
     new_inds[,2] <- sample(x = 1:8, size = dim(new_inds)[1], replace = TRUE);
@@ -416,7 +419,7 @@ birth <- function(inds, lambda = 0.5, repr_col = 4, ind_cols = 4){
 }
 ```
 
-In the function above, we first sample from a Poisson distribution using `rpois` to determine how many offspring each individual has. Next, we sum that number up to get `total_off`, which will be the total number of new individuals to be added to `inds`. A new array is made (`new_inds`) with `total_off` rows and four columns, and values are initialised for individual body mass and location. Finally, this `new_inds` array is combined with the old one `inds` using `rbind`[^2] so that our working array of individuals now has both the old individuals and the new ones. We can see how this function runs now by running it below.
+In the function above, we first get the dimensions of the `ind` array (`total_inds` and `ind_cols`). Next, we sample from a Poisson distribution using `rpois` to determine how many offspring each individual has produced. Next, we sum that number up to get `total_off`, which will be the total number of new individuals to be added to `inds`. A new array is made (`new_inds`) with `total_off` rows and `ind_cols` columns, and values are initialised for individual body mass and location. Finally, this `new_inds` array is combined with the old one `inds` using `rbind`[^2] so that our working array of individuals now has both the old individuals and the newly born ones. We can see how this function runs now by running it below.
 
 ```{r}
 inds <- birth(inds = inds);
@@ -428,7 +431,7 @@ What has happend above is that we have read `inds` into the function `birth` and
 print(inds);
 ```
 
-Note that the sum of the fourth column equals the number of new individuals added (`r sum(inds[,4])`). The new individuals do not have row names, but this is okay; we do not really need them. Note that there are other ways we could add to `births`. We might, for example, wish for new offspring to have similar body masses to their mothers', or for offspring to be initialised in the same locations as their mothers rather than being randomly placed on the landscape. I encourage the reader to try to think about these kinds of possibilities, and to try adding them to the code above.
+Note that the sum of the fourth column equals the number of new individuals added (`r sum(inds[,4])`). The new individuals do not have row names, but this is okay; we do not really need them. Note that there are other ways that we could add to `births`. We might, for example, wish for new offspring to have similar body masses to their mothers', or for offspring to be initialised in the same locations as their mothers rather than being randomly placed on the landscape. I encourage the reader to try to think about these kinds of possibilities, and to try adding them to the code above.
 
 For now, we can simulation both birth and movement of `inds` over time using the loop below (note that the code below is the same as that from the [previous section](#time), with some modifications). Instead of 20 time steps, I will only simulate 10 for now. I will also, arbitrarily, choose to model birth as occurring after movement in the population. 
 
@@ -461,7 +464,7 @@ We can see from the table above that the population size is increasing exponenti
 <a name="death">6. Simulating individual death</a>
 ================================================================================
 
-We can simulate individual death similarly to individual reproduction. Here though, because we want death to be density dependent, the probability of individual death needs to somehow be related to total population abundance. There are several reasonable ways to do model death in this way. For example, we could write function that checks population abundance, assigns the probability of individual death based on some carrying capacity, then realises death by a Bernoulli trial (sampling a 0 or 1) using that assigned probability (i.e., as total abundance increases, each individual's probability of dying also increases, and we sample each individual's survival versus mortality from this probability to see if they make it into the next time step using something like `rbinom`). Another, simpler, option is to relate mortality to the number of individuals on a landscape cell.
+We can simulate individual death similarly to individual birth. Here though, because we want death to be density dependent, the probability of individual death needs to somehow be related to total population abundance. There are several reasonable ways to do model death in this way. For example, we could a write function that checks population abundance, assigns the probability of individual death based on some carrying capacity, then realises death by a Bernoulli trial (sampling a 0 or 1) using that assigned probability (i.e., as total abundance increases, each individual's probability of dying also increases, and we sample each individual's survival versus mortality from this probability to see if they make it into the next time step using something like `rbinom`). Another, simpler, option is to relate mortality to the number of individuals on a landscape cell.
 
 Suppose we assume that each landscape cell has enough resources to feed one individual for one time step. We might then write a function `death` that causes mortality whenever there is more than one individual on the same landscape cell. Because there are $8 \times 8 = 64$ total landscape cells, the maximum possible population size of would then be 64. This would control the population size in a biologically intuitive way. To get started, I will reinitialise some individuals below, this time with another column added, which will represent mortality.
 
@@ -488,9 +491,9 @@ death <- function(inds, xlen = 8, ylen = 8, dcol = 5, xcol = 2, ycol = 3){
             on_cell <- sum( inds[, xcol] == xdim & inds[, ycol]  == ydim);
             # Only do something if on_cell is more than one
             if(on_cell > 1){
-                # Get all of the occupants on the cell
+                # Get all of the occupants (by row number) on the cell
                 occupants <- which(inds[, xcol] == xdim & inds[, ycol] == ydim);
-                # Sample all but one random occupants to die
+                # Sample all but one random occupant to die
                 rand_occ  <- sample(x = occupants, size = on_cell - 1);
                 # Then add their death to the last column of inds
                 inds[rand_occ, dcol] <- 1;
@@ -501,9 +504,9 @@ death <- function(inds, xlen = 8, ylen = 8, dcol = 5, xcol = 2, ycol = 3){
 }
 ```
 
-I have used a few tricks of R to keep the code short here, but I want to walk the reader through what is happening. As already mentioned, the double four loop cycles through each cell of the landscape. The outer loop goes through each x location from 1 to `ylen` (default value of 8). For each x location, the other loop goes through each y location (so first `x = 1` and `y = 1`, then `x = 1` and `y = 2`, and so forth until we get to `x = 2` and `y = 1`, then `x = 2` and `y = 2`, etc.). The line returning `on_cell` gets the total number of individuals that have an x location of `xdim` and a y location of `ydim`. If this number is more than one, then mortality needs to happen. The line returning `occupants` finds the individuals on the cell of interest using the `which` function in R, then the `sample` function is used to sample all but one of these individuals (sampling without replacement). In each case, `occupants` and `rand_occ` are vectors of numbers identifying individuals, and these numbers correspond to the individuals' rows. Hence individuals in the rows `rand_occ` will die, so we add a 1 to the death column. 
+I have used a few tricks of R to keep the code short here, but I want to walk the reader through what is happening. As already mentioned, the double four loop cycles through each cell of the landscape. The outer loop goes through each x location from 1 to `ylen` (default value of 8). For each x location, the inner loop goes through each y location (so first `x = 1` and `y = 1`, then `x = 1` and `y = 2`, and so forth until we get to `x = 2` and `y = 1`, then `x = 2` and `y = 2`, etc.). The line returning `on_cell` gets the total number of individuals that have an x location of `xdim` and a y location of `ydim`. If this number is more than one, then mortality needs to happen. The line returning `occupants` finds the individuals on the cell of interest using the `which` function in R, then the `sample` function is used to sample all but one of these individuals (sampling without replacement). In each case, `occupants` and `rand_occ` are vectors of numbers identifying individuals, and these numbers correspond to the individuals' rows. Hence individuals in the rows `rand_occ` will die, so we add a 1 to the death column. 
 
-To test this function, we can set individuals 2 and 3 to have the same location as individual 1. If the function is working, then only one of these individuals should survive after running the function `death`.
+To test this function, we can set individuals 2 and 3 to have the same location as individual 1. If the function is working, then only one of these three individuals should survive after running the function `death`.
 
 ```{r}
 inds[2, 2] <- inds[1, 2]; # Individiual 2 now in same x location as 1
@@ -523,7 +526,7 @@ inds <- death(inds = inds);
 print(inds);
 ```
 
-Note that two of the individuals above are dead (ones in column 5), and the rest have survived (zeros in column 5). We can retain the living individuals using the code below.
+Note that two of the individuals above are dead (ones in column 5), and the rest have survived (zeros in column 5). We can retain the living individuals using the code below, which re-defines `inds` as only the subset of `inds` rows in which the value of column 5 is 0.
 
 ```{r}
 inds <- inds[inds[, 5] == 0,]; # Retains individuals that did not die
@@ -546,7 +549,7 @@ time_steps <- 20;
 inds_hist  <- NULL;
 while(ts < time_steps){
     inds            <- movement(inds);
-    inds            <- birth(inds, ind_cols = dim(inds)[2]);
+    inds            <- birth(inds);
     inds            <- death(inds);
     inds            <- inds[inds[, 5] == 0,]; # Retain living
     ts              <- ts + 1; 
@@ -575,7 +578,7 @@ plot(x = inds[,2], y = inds[,3], pch = 20, cex = 4, xlim = c(1, 8),
      ylab = "y location", cex.lab = 1.5, cex.axis = 1.5);
 ```
 
-Notice that the entire landscape has not filled up. Since newly born individuals are placed at random on the landscape, and individuals also move randomly, it is unlikely that the landscape will become saturated with individuals. We have effectively simulated a process of intra-specific competition; that is, competition among individuals within the same species for a limiting resource (space, in this case, in the form of landscape cells). If we wanted to investigate intra-specific competition more closely, we could change some of the assumptions of our IBM. Such assumptions could include the size of the landscape, the number individuals that could survive on the same landscape cell, or perhaps how individuals move from cell to cell (e.g., to avoid competition). We could also add new biological processes using the current code as a starting point. For example, we might be interested in how body mass evolves as a consequence of intra-specific competition. To investigate this, we would need to make `body_mass` heritable in our model (i.e., make offspring `body_mass` more similar to parent `body_mass` than expected by chance, probably by adding some code in the `birth` function), and we would need to have some rule relating `body_mass` to the outcome of intra-specific competition (e.g., by making individuals with high `body_mass` more likely to survive than individuals with low `body_mass`, probably by adding some code in the `death` function). These are good exercises to try, and I encourage the reader to try making modifications like this to practice coding IBMs.
+Notice that the entire landscape has not filled up. Since newly born individuals are placed at random on the landscape, and individuals also move randomly, it is unlikely that the landscape will become saturated with individuals. We have effectively simulated a process of intra-specific competition; that is, competition among individuals within the same species for a limiting resource (space, in this case, in the form of landscape cells). If we wanted to investigate intra-specific competition more closely, we could change some of the assumptions of our IBM. Such assumptions could include the size of the landscape, the number individuals that could survive on the same landscape cell, or perhaps how individuals move from cell to cell (e.g., to avoid competition). We could also add new biological processes using the current code as a starting point. For example, we might be interested in how body mass evolves as a consequence of intra-specific competition. To investigate this, we would need to make `body_mass` heritable in our model (i.e., make offspring `body_mass` more similar to parent `body_mass` than expected by chance, probably by adding some code in the `birth` function), and we would need to have some rule relating `body_mass` to the outcome of intra-specific competition (e.g., by making individuals with high `body_mass` more likely to survive than individuals with low `body_mass`, probably by adding some code in the `death` function). These are good exercises to try, and I encourage the reader to make modifications like this to practice coding IBMs.
 
 Having a working population of individuals, there is one more exercise that I want to present. In the next section, I will demonstrate how we can use a second array to model a population of predators on `inds`.  And by the end of the next section, we will have a working model of predator-prey dynamics on a spatially explicit landscape.
 
@@ -597,7 +600,7 @@ pred[,3]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
 print(pred);
 ```
 
-Note that because the `pred` array is of the same structure as the `inds` array, all of the functions that we wrote (`movement`, `birth`, and `death`) could be equally well used for our predators. But because we are modelling predation, this might not always make sense. We might, for example, be willing to assume that predators move similarly as their prey, but want to model birth and death processes differently. It would be reasonable to assume that birth and death are both affected by how successful a predator is at acquiring prey, so perhaps we only want predators to survive and breed if they have eaten some fixed number of times. For simplicity, I will assume that predators that eat at least one prey in `inds` survive to the next time step, while predators that eat two prey reproduce. I will further assume that predators cannot eat more than two prey in a time step, and that predators that fail to eat die. Note that given these assumptions, it is necessary to write new code to model predator birth and death, but before doing this, it is worth thinking about the order of operations in the code. That is, it will be useful to consider when predation will happen (e.g., at the start or end of a time step). Consider again the code from the previous section used to simulate individuals in the population.
+Note that because the `pred` array is of the same structure as the `inds` array, all of the functions that we wrote (`movement`, `birth`, and `death`) could equally well be used for our predators. But because we are modelling predation, this might not always make sense. We might, for example, be willing to assume that predators move similarly as their prey, but want to model birth and death processes differently. It would be reasonable to assume that birth and death are both affected by how successful a predator is at acquiring prey, so perhaps we only want predators to survive and breed if they have eaten some fixed number of times. For simplicity, I will assume that predators that eat at least one prey in `inds` survive to the next time step, while predators that eat two prey reproduce. I will further assume that predators cannot eat more than two prey in a time step, and that predators that fail to eat die. Note that given these assumptions, it is necessary to write new code to model predator birth and death, but before doing this, it is worth thinking about the order of operations in the code. That is, it will be useful to consider when predation will happen (e.g., at the start or end of a time step). Consider again the code from the previous section used to simulate individuals in the population.
 
 ```{r, eval = FALSE}
 # ----- Initialise individuals
@@ -613,7 +616,7 @@ time_steps <- 20;
 inds_hist  <- NULL;
 while(ts < time_steps){
     inds            <- movement(inds);
-    inds            <- birth(inds, ind_cols = dim(inds)[2]);
+    inds            <- birth(inds);
     inds            <- death(inds);
     inds            <- inds[inds[, 5] == 0,]; # Retain living
     ts              <- ts + 1; 
@@ -621,7 +624,7 @@ while(ts < time_steps){
 }
 ```
 
-In the code above, individuals move, give birth, then die. And given the rules of individual mortality, only one individual, at most, is allowed per landscape cell at the end of a time step. Hence, if predation were to happen at the end of the time step, predators could not reproduce. Biologically, having predation happen after prey death as caused by density dependence might also not make much sense; why should the predators wait? A good argument could probably be made for having predators move and eat first in the time step (i.e., preceding individual movement, birth, and death within the `while` loop above), both on biological and modelling grounds. I do not want to dwell on this, but only point out that thinking about the order in which events occur in the IBM is important, and therefore should be considered carefully. It is often good to change the order of events to see how it affects simulation results. For now, I will assume that predators get to move, eat, and reproduce *after* prey give birth but *before* prey die. It is only at this point, between `birth` and `death` above, in which more than two individuals can exist on the same cell, so this is the only time that predators could possibly eat more than one prey item to reproduce.
+In the code above, individuals (now prey) move, give birth, then die. And given the rules of individual mortality, only one individual, at most, is allowed per landscape cell at the end of a time step. Hence, if predation were to happen at the end of the time step, predators could not reproduce. Biologically, having predation happen after prey death as caused by density dependence might also not make much sense. A good argument could probably be made for having predators move and eat first in the time step (i.e., preceding individual movement, birth, and death within the `while` loop above), both on biological and modelling grounds. I do not want to dwell on this, but only point out that thinking about the order in which events occur in an IBM is important, and therefore should be considered carefully. It is often good to change the order of events to see how it affects simulation results. For now, I will assume that predators get to move, eat, and reproduce *after* prey give birth but *before* prey die. It is only at this point, between `birth` and `death` above, in which more than two individuals can exist on the same cell, so this is the only time that predators could possibly eat more than one prey item to reproduce.
 
 Predator movement is easy because we already have the `movement` function, and are content to assume that predators move in the same way as prey, potentially moving one landscape cell in any random direction. 
 
@@ -727,7 +730,7 @@ Here is what the individual array now looks like.
 print(inds);
 ```
 
-There is only one surviving prey. This is the prey on the landscape cell $x = 1$, $y = 1$, which started out with three individuals on which two other individuals were eaten by the predator. All other individuals were eaten because they occupied cells with two or fewer other individuals. Below is what the predator array now looks like.
+There is only one surviving prey. This is one of the prey on the landscape cell $x = 1$, $y = 1$, which started out with three individuals on which two other individuals were eaten by the predator. All other individuals were eaten because they occupied cells with two or fewer other individuals. Below is what the predator array now looks like.
 
 ```{r, echo = FALSE}
 print(pred);
@@ -741,7 +744,7 @@ If we are confident that the `predation` function is working as intended, we can
 <a name="synthesis">8. Putting it all together</a>
 ================================================================================
 
-Having coded functions for [movement](#move), [birth](#birth), [death](#death), and [predation](#predators), we can now put all of these processes together to simulate a predator-prey system. The code for simulating these processes will build off of some of the code above, as I introduced originally to [simulate individual movement over time](#time) and most recently reconsidered when considering the order of predation in the [previous section](#predators). All that we need to add is the initialisation of predators, the inclusion of predator movement predation in each time step, and the recording of the predator array over time steps. 
+Having coded functions for [movement](#move), [birth](#birth), [death](#death), and [predation](#predators), we can now put all of these processes together to simulate a predator-prey system. The code for simulating these processes will build off of some of the code above, as I introduced originally to [simulate individual movement over time](#time) and most recently used when considering the order of predation in the [previous section](#predators). All that we need to add is the initialisation of predators, the inclusion of predator movement and predation in each time step, and the recording of the predator array over time steps. 
 
 In the code below, 40 individuals are initialised; the high number ensures that there are enough prey to sustain the predator population. The predator abundance is initialised at five, and both prey and predators are randomly placed on the landscape. Within the `while` loop below, we now include predator movement (`movement(pred)`) and predation (`predation(pred = pred, inds = inds)`). The list `pred_hist` now stores the `pred` array in each time step, as is done for the `inds` array, so that we can reconstruct predator movement and abundances over time. Hence, by running the code below, we can analyses both `inds_hist` and `pred_hist` to understand predator-prey dynamics (note that the below code will sometimes lead to predator or prey extinction, causing an error in R; we do not have a rule for what happens if extinctions occurs, but it would be useful to think of one to avoid having to deal with error messages).
 
@@ -764,7 +767,7 @@ pred_hist  <- NULL;
 while(ts < time_steps){
     pred            <- movement(pred);
     inds            <- movement(inds); # Note: I increased prey birth rate
-    inds            <- birth(inds, ind_cols = dim(inds)[2], lambda = 1.5);
+    inds            <- birth(inds, lambda = 1.5);
     pred_prey_res   <- predation(pred = pred, inds = inds);
     pred            <- pred_prey_res$pred;
     inds            <- pred_prey_res$inds;
@@ -801,20 +804,209 @@ legend(x = 0, y = 80, legend = c("Predator", "Prey"), col = c("red", "black"),
        cex = 1.25, lty = c("solid", "solid"), lwd = c(3, 3));
 ```
 
-In the plot above, we see that predator and prey population abundances oscillate over time. As prey become more abundant, predator growth rate increases. As predators then become more common, prey abundance in turn starts to fall. Note that these oscillations are the same kinds of limit cycles [predicted by mathematical models](https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations#Solutions_to_the_equations) using Lotka-Volterra equations describing the change in predator ($y$) and prey ($x$) densities over time ($t$). 
+In the plot above, we see that predator and prey population abundances oscillate over time. As prey become more abundant, predator growth rate increases. As predators then become more common, prey abundance in turn starts to fall. Note that these oscillations are the same kinds of limit cycles [predicted by mathematical models](https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations#Solutions_to_the_equations) using Lotka-Volterra equations describing the change in prey ($x$) and predator ($y$) densities over time ($t$). 
 
 $$\frac{dx}{dt} = x(\alpha - \beta y),$$
 
 $$\frac{dy}{dt} = -y(\gamma-\delta x) .$$
 
-**But we have not used any of these equations when building our individual-based model!** We have not even set parameters such as $\alpha$, $\beta$, $\delta$, or $\gamma$ in the code. So what is going on here? The answer is that both models make similar biological assumptions -- similar enough to produce a similar oscillating patterns of predator-prey abundances (at least, for a subset of parameter values). For example, in both models, the growth rate of one population is tied to the density of the other population. Using different modelling techniques is often a useful way to address theoretical questions from slightly different perspectives using different biological assumptions [@Caswell1988].
+**But we have not used either of these equations when building our individual-based model!** We have not even set parameters such as $\alpha$, $\beta$, $\delta$, or $\gamma$ in the code. So what is going on here? The answer is that both models make similar biological assumptions -- similar enough to produce similar oscillating patterns of predator-prey abundances (at least, for a subset of parameter values). For example, in both models, the growth rate of one population is tied to the density of the other population. Using different modelling techniques is often a useful way to address theoretical questions from slightly different perspectives using different biological assumptions [@Caswell1988].
+
+<a name="conclusions">9. Conclusions</a>
+================================================================================
+
+Individual-based models are highly flexible tools for modelling biological systems. These notes are only a starting point for developing and using them, and I hope that they provide a helpful foundation for anyone interested in coding their own IBMs. I have tried to make the code as readable as possible for newcomers to IBMs and coding in R, particularly in the first few sections. Consequently, some of the code is not as efficient as it could be in terms of computational efficiency. Nevertheless, I encourage interested readers to experiment with the code ([aggregated below](#all)), and to add new lines, functions, or data structures to try to model different biological processes. Some potentially interesing starting points might include the below.
+
+1. Modelling a torus landscape within `movement`, rather than a landscape with a reflecting boundary (i.e., make individuals that leave on one side of the landscape come back on the other side).
+2. Modelling the heritability of body mass by causing individuals to give birth to offspring have body masses similar to their parents.
+3. Modelling disturbance on the landscape to see how high mortality on a subset of landscape cells affects global predator-prey dynamics (this would likely require a new function).
+4. Modelling birth or death rate as dependent upon the quality of a landscape cell (this would likely require a new data structure to store landscape cell quality).
+
+The ability to model biological processes such as the ones above can be very useful, and a lot of fun. IBMs can also be extremely helpful for clarifying how we think about biological systems, both to develop general theory and to predict the dynamics of specific complex systems [e.g., @Uchmanski1996; @McLane2011; @Benton2012; @Aben2014; @Duthie2017].  
+
+
+<a name="all">10. Appendix with all code</a>
+================================================================================
+
+It is useful to have all of the code in one place. Below, I have included all of the functions and code required to run the above predator-prey individual-based model. The code below can be highlighted, copied, and run in the R console to produce a simulation over 40 time steps.
+
+
+```{r, eval = FALSE}
+# =============================================================================
+# Movement function
+# =============================================================================
+movement <- function(inds, xloc = 2, yloc = 3, xmax = 8, ymax = 8){
+    total_inds   <- dim(inds)[1]; # Get the number of individuals in inds
+    move_dists   <- c(-1, 0, 1);  # Define the possible distances to move
+    x_move       <- sample(x = move_dists, size = total_inds, replace = TRUE);
+    y_move       <- sample(x = move_dists, size = total_inds, replace = TRUE);
+    inds[, xloc] <- inds[, xloc] + x_move;
+    inds[, yloc] <- inds[, yloc] + y_move;
+    # =========   The reflecting boundary is added below
+    for(i in 1:total_inds){               # For each individual i in the array
+        if(inds[i, xloc] > xmax){         # If it moved passed the maximum xloc
+            inds[i, xloc] <- xmax - 1;    # Then move it back toward the centre
+        }
+        if(inds[i, xloc] < 1){            # If it moved below 1 on xloc
+            inds[i, xloc] <- 2;           # Move it toward the centre (2)
+        }
+        if(inds[i, yloc] > ymax){         # If it moved passed the maximum yloc
+            inds[i, yloc] <- ymax - 1;    # Then move it back toward the centre
+        }
+        if(inds[i, yloc] < 1){            # If it moved below 1 on yloc
+            inds[i, yloc] <- 2;           # Then move it toward the centre (2)
+        }
+    } 
+    # =========  Now all individuals should stay on the landscape
+    return(inds);
+}
+
+# =============================================================================
+# Birth function
+# =============================================================================
+birth <- function(inds, lambda = 0.5, repr_col = 4){
+    total_inds       <- dim(inds)[1]; # Get the number of individuals in inds
+    ind_cols         <- dim(inds)[2]; # Total inds columns
+    inds[, repr_col] <- rpois(n = total_inds, lambda = lambda); 
+    total_off        <- sum(inds[, repr_col]);
+    # ---- We now have the total number of new offspring; now add to inds
+    new_inds     <- array(data = 0, dim = c(total_off, ind_cols));
+    new_inds[,1] <- rnorm(n = dim(new_inds)[1], mean = 23, sd = 3);
+    new_inds[,2] <- sample(x = 1:8, size = dim(new_inds)[1], replace = TRUE);
+    new_inds[,3] <- sample(x = 1:8, size = dim(new_inds)[1], replace = TRUE);
+    # ---- Our new offspring can now be attached in the inds array
+    inds <- rbind(inds, new_inds);
+    return(inds);
+}
+
+# =============================================================================
+# Death function
+# =============================================================================
+death <- function(inds, xlen = 8, ylen = 8, dcol = 5, xcol = 2, ycol = 3){
+    for(xdim in 1:xlen){      # For each row `xdim` of the landscape...
+        for(ydim in 1:ylen){  # For each col `ydim` of the landscape...
+            # Get the total number of individuals on the landscape cell
+            on_cell <- sum( inds[, xcol] == xdim & inds[, ycol]  == ydim);
+            # Only do something if on_cell is more than one
+            if(on_cell > 1){
+                # Get all of the occupants on the cell
+                occupants <- which(inds[, xcol] == xdim & inds[, ycol] == ydim);
+                # Sample all but one random occupants to die
+                rand_occ  <- sample(x = occupants, size = on_cell - 1);
+                # Then add their death to the last column of inds
+                inds[rand_occ, dcol] <- 1;
+            }
+        }
+    }
+    return(inds);
+}
+
+# =============================================================================
+# Predation function
+# =============================================================================
+predation <- function(pred, inds, xcol = 2, ycol = 3, rcol = 4, dcol = 5){
+    predators   <- dim(pred)[1]; # Predator number
+    pred[, dcol] <- 1;           # Assume dead until proven otherwise
+    pred[, rcol] <- 0;           # Assume not reproducing until proven otherwise
+    for(p in 1:predators){       # For each predator (p) in the array
+        xloc   <- pred[p, xcol]; # Get the x and y locations
+        yloc   <- pred[p, ycol];
+        N_prey <- sum( inds[, xcol] == xloc & inds[, ycol] == yloc);
+        # ----- Let's take care of the predator first below
+        if(N_prey > 0){
+            pred[p, dcol] <- 0;  # The predator lives
+        }
+        if(N_prey > 1){
+            pred[p, rcol] <- 1;  # The predator reproduces
+        }
+        # ----- Now let's take care of the prey
+        if(N_prey > 0){ # If there are some prey, find them
+            prey <- which( inds[, xcol] == xloc & inds[, ycol] == yloc);
+            if(N_prey > 2){ # But if there are more than 2, just eat 2
+                prey <- sample(x = prey, size = 2, replace = FALSE);
+            }
+            inds[prey, dcol] <- 1; # Record the prey as dead
+        }
+    } # We now know which inds died, and which prey died & reproduced
+    # ---- Below removes predators that have died
+    pred         <- pred[pred[,dcol] == 0,] # Only survivors now left
+    # ----- Below adds new predators based on the reproduction above    
+    pred_off     <- sum(pred[, rcol]);
+    new_pred     <- array(data = 0, dim = c(pred_off, dim(pred)[2]));
+    new_pred[,1] <- rnorm(n = dim(new_pred)[1], mean = 23, sd = 3);
+    new_pred[,2] <- sample(x = 1:8, size = dim(new_pred)[1], replace = TRUE);
+    new_pred[,3] <- sample(x = 1:8, size = dim(new_pred)[1], replace = TRUE);
+    pred         <- rbind(pred, new_pred);
+    # ----- Now let's remove the prey that were eaten
+    inds         <- inds[inds[,dcol] == 0,]; # Only living prey left
+    # Now need to return *both* the predator and prey arrays
+    pred_prey <- list(pred = pred, inds = inds);
+    return(pred_prey);
+}
+
+# =============================================================================
+# Simulate predator-prey dynamics
+# =============================================================================
+# ----- Initialise individuals (prey)
+inds           <- array(data = 0, dim = c(40, 5));
+inds[,1]       <- rnorm(n = dim(inds)[1], mean = 23, sd = 3);
+inds[,2]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+inds[,3]       <- sample(x = 1:8, size = dim(inds)[1], replace = TRUE);
+# ----- Initialise individuals (predator)
+pred           <- array(data = 0, dim = c(20, 5));
+pred[,1]       <- rnorm(n = dim(pred)[1], mean = 23, sd = 3);
+pred[,2]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
+pred[,3]       <- sample(x = 1:8, size = dim(pred)[1], replace = TRUE);
+# ---- Start the simulation as before
+ts         <- 0;
+time_steps <- 40;
+inds_hist  <- NULL;
+pred_hist  <- NULL;
+while(ts < time_steps){
+    pred            <- movement(pred);
+    inds            <- movement(inds); # Note: I increased prey birth rate
+    inds            <- birth(inds, lambda = 1.5);
+    pred_prey_res   <- predation(pred = pred, inds = inds);
+    pred            <- pred_prey_res$pred;
+    inds            <- pred_prey_res$inds;
+    inds            <- death(inds);
+    inds            <- inds[inds[, 5] == 0,]; # Retain living
+    ts              <- ts + 1; 
+    inds_hist[[ts]] <- inds;
+    pred_hist[[ts]] <- pred;
+}
+
+# =============================================================================
+# Print the results
+# =============================================================================
+ind_abund <- array(data = NA, dim = c(40, 3));
+for(i in 1:40){
+    ind_abund[i, 1] <- i;                      # Save the time step
+    ind_abund[i, 2] <- dim(inds_hist[[i]])[1]; # rows in inds_hist[[i]]
+    ind_abund[i, 3] <- dim(pred_hist[[i]])[1]; # rows in pred_hist[[i]]
+}
+colnames(ind_abund) <- c("time_step", "abundance", "predators");
+print(ind_abund);
+
+# =============================================================================
+# Plot the results
+# =============================================================================
+par(mar = c(5, 5, 1, 1));
+plot(x = ind_abund[,2], type = "l", lwd = 3, ylim = c(0, 80), 
+     xlab = "time step", ylab = "Population abundance", cex.axis = 1.5, 
+     cex.lab = 1.5);
+points(x = ind_abund[,3], type = "l", lwd = 3, col = "red");
+legend(x = 0, y = 80, legend = c("Predator", "Prey"), col = c("red", "black"),
+       cex = 1.25, lty = c("solid", "solid"), lwd = c(3, 3));
+```
+
 
 
 References
 ================================================================================
 
 
-[^1]: This has happened to me once, on accident, when coding [an IBM for plant-pollinator-exploiter interactions](https://github.com/bradduthie/Duthie_and_Falcy_2013) [@Duthie2013]. While testing my code, I had been printing off the locations of all individuals in the IBM to a text file. Later, upon running a large number of simulations, I noticed that my computer was slowing down quite a bit. Soon, a warning message came up that there was no more space to write to my hard drive. Because I had forgotten to stop printing all individual locations to the text file, every new location of millions of individuals was being recorded. The text file was well over 150 gigabytes when I forced the simulations to terminate, then removed the bit of code that printed individual locations.
+[^1]: This has happened to me once, on accident, when coding [an IBM for plant-pollinator-exploiter interactions](https://github.com/bradduthie/Duthie_and_Falcy_2013) [@Duthie2013]. While testing my code, I had been printing off the locations of all individuals in the IBM to a plain text file. Later, upon running a large number of simulations, I noticed that my computer was slowing down quite a bit. Soon, a warning message came up that there was no more space to write to my hard drive. Because I had forgotten to stop printing all individual locations to the text file, every new location of millions of individuals was being recorded. The text file was well over 150 gigabytes when I forced the simulations to terminate, then removed the bit of code that printed individual locations.
 
 [^2]: For large IBMs, I feel obliged to point out that `rbind` can be very slow due to the way that memory is managed in R. If simulations start slowing down too much, it is best to refactor the code to avoid using `rbind` (or `cbind`). I only use it in the example here because it is a very convenient single line solution for binding two rows of an array together, and I do not want to get overwhelmed in the details of coding techniques for maximising efficiency.
 
