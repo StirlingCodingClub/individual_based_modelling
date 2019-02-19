@@ -33,8 +33,10 @@ Contents
 <a name="intro">1. Introduction: What is an individual-based model?</a>
 ================================================================================
 
+Biological models include a diverse set of tools that can be usefully applied to address a range of biological questions, from foundational principles of biological theory to more targeted questions about the dynamics of specific biological systems. In a forceful defence of theory and models in ecology, @Caswell1988 proposes the fundamental role of models in theory to be analogous to that of experiments in empirical biology. For more system-specific questions, complex modelling can be used with observational or experimental data to predict the dynamics of even highly complex systems [e.g., @Aben2014]. Whatever the question being asked, models help us to clarify the biological assumptions underlying our thinking, and to better understand the predictions that follow. Here I will focus on individual-based models (also called 'agent-based models'), which model systems of discrete individuals *in silico* (i.e., in a computer simulation, developed by writing and running code). The idea is to represent individuals (often, but not always, biological organisms) as discrete entities within within the code, and to simulate changes in individual composition and individual properties by modelling biological processes as algorithms within the code.
 
-- Note that the code here is not optimised for efficiency. It is written to be as easy to learn as possible.
+Unsurprisingly, the use of individual-based models has grown rapidly with the power and availability of computers [@Grimm1999; @DeAngelis2005].
+
 
 <a name="initialise">2. Getting started with IBMs in R</a>
 ================================================================================
