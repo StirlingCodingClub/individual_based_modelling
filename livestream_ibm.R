@@ -79,27 +79,53 @@ inc_Os <- function(P, O){
     return(P);
 }
 
-
+# Density independent death
+# P is the existing plant array
+# pr_d is the probability of individual death
 ind_death <- function(P, pr_d = 0.1){
    is_live <- rbinom(n = dim(P)[1], size = 1, pr = 1 - pr_d);
-   P       <- P[is_live == 1,];  
+   P       <- P[is_live == 1,];
+   P       <- P[P[,4] > 0, ];
    return(P);
 }
 
+# Function for checking to see if population is extinct
+# P is the existing plant array
+check_extinct <- function(P){
+    extinct <- FALSE;
+    Pdim    <- dim(P)[1]
+    if(is.null(Pdim)){
+        extinct <- TRUE;
+    }else{
+        if(Pdim < 2){
+            extinct <- TRUE;
+        }
+    }
+    return(extinct);
+}
+
+# Function to increase plant size
+# P is existing plant array
+# gr_mean is the mean growth 
+# gr_sd is the standard deviation of growth
+ind_growth <- function(P, gr_mean = 1, gr_sd = 1){
+    gr    <- rnorm(n = dim(P)[1], mean = gr_mean, sd = gr_sd);
+    gr    <- abs(gr);
+    P[,4] <- P[,4] + gr;
+    return(P);
+}
 
 
-
-
-
-
-P <- ini_Ps(L_size = 20, N_ini = 50, shp = 5, rat = 1)
+E <- FALSE;
+P <- ini_Ps(L_size = 20, N_ini = 70, shp = 5, rat = 1)
 P <- competition(P, L_size = 20)
 O <- reproduction(P = P, L_size = 20, N_seeds = 10, rng = 2, thresh_size = 10)
 if(!is.null(O)){
     P <- inc_Os(P = P, O = O);
 }
-
-
+P <- ind_death(P = P, pr_d = 0.8);
+E <- check_extinct(P);
+P <- ind_growth(P = P, gr_mean = 1, gr_sd = 1);
 
 
 
