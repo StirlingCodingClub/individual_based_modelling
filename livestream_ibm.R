@@ -1,5 +1,3 @@
-
-
 # Initialise new individuals on landscape
 # N_ini = individual number, L_size = landscape x and y dim
 # shp = shape of the gamma distr, rat = rate of gamma distr
@@ -60,8 +58,8 @@ reproduction <- function(P, L_size, N_seeds = 10, rng = 2, thresh_size = 10){
              P_off  <- cbind(p_ID, p_x, p_y, p_sz);
              all_of <- rbind(all_of, P_off);
         }
-        all_of[all_of[, 2] < 0 | all_of[, 2] > L_size, 4] <- -1; 
-        all_of[all_of[, 3] < 0 | all_of[, 3] > L_size, 4] <- -1; 
+        all_of[all_of[, 2] < 1 | all_of[, 2] > L_size, 4] <- -1; 
+        all_of[all_of[, 3] < 1 | all_of[, 3] > L_size, 4] <- -1; 
         all_of <- all_of[all_of[,4] > 0, ];
     }
     return(all_of);
@@ -140,25 +138,31 @@ simulate_P <- function(tmax, L_size = 20, N_ini = 100, sz_th = 10, Nseeds = 10,
         extin <- check_extinct(P);
         P_hist[[ts]] <- P;
         ts    <- ts + 1;
+        print(ts);
     }
     return(P_hist);
 }
 
+# Plot the simulation history population and plant size
+plot_plant_sim <- function(P_hist){
+    list_popsize <- lapply(X = P_hist, FUN = nrow);
+    vec_popsize  <- unlist(list_popsize);
+    mean_size    <- rep(x = NA, length = length(P_hist));
+    for(t in 1:length(P_hist)){
+        P            <- P_hist[[t]];
+        mS           <- mean(P[,4]);
+        mean_size[t] <- mS;
+    }
+    par(mfrow = c(1, 2));
+    plot(x = 1:length(vec_popsize), y = vec_popsize, type = "l", lwd = 2,
+         ylim = c(0, 20 * 20), xlab = "Time Step", ylab = "Population Size");
+    plot(x = 1:length(mean_size), y = mean_size, type = "l", lwd = 2,
+          xlab = "Time Step", ylab = "Plant Size");
+}
 
-list_popsize <- lapply(X = P_hist, FUN = nrow);
-vec_popsize  <- unlist(list_popsize);
 
-
-
-plot(x = 1:length(vec_popsize), y = vec_popsize, type = "l", lwd = 2,
-     ylim = c(0, 20 * 20));
-
-
-
-
-plot(x = P_sp[,2], y = P_sp[,3], pch = 16, cex = 2, col = "red", 
-     xlim = c(-1, 11), ylim = c(-1, 11));
-points(x = all_of[,2], y = all_of[,3])
-
-
+# Example simulation
+sim <- simulate_P(tmax = 100, L_size = 20, N_ini = 20, sz_th = 10, Nseeds = 10,
+                  rng_s = 2, pr_d = 0.2, gr_mn = 1, gr_sd = 1);
+plot_plant_sim(sim);
 
