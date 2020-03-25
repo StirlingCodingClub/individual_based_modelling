@@ -67,6 +67,10 @@ reproduction <- function(P, L_size, N_seeds = 10, rng = 2, thresh_size = 10){
     return(all_of);
 }
 
+# Add the new seedlings to the plant array
+# P is the existing plant array
+# O is the offspring (seedlings) of the parent plants
+# Will return an updated P
 inc_Os <- function(P, O){
     st_IDs <- max(P[,1]) + 1;
     new_ID <- seq(from = st_IDs, to = st_IDs + dim(O)[1] - 1);
@@ -76,7 +80,18 @@ inc_Os <- function(P, O){
 }
 
 
-    
+ind_death <- function(P, pr_d = 0.1){
+   is_live <- rbinom(n = dim(P)[1], size = 1, pr = 1 - pr_d);
+   P       <- P[is_live == 1,];  
+   return(P);
+}
+
+
+
+
+
+
+
 P <- ini_Ps(L_size = 20, N_ini = 50, shp = 5, rat = 1)
 P <- competition(P, L_size = 20)
 O <- reproduction(P = P, L_size = 20, N_seeds = 10, rng = 2, thresh_size = 10)
