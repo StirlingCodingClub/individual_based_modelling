@@ -12,3 +12,32 @@ ini_Ps <- function(L_size = 20, N_ini = 30, shp = 5, rat = 1){
     return(P);
 }
 
+# Causes competition between plants on the same landscape cell
+# The plant with the bigger size is removed
+# P = the array of individuals, L_size is the x & y dimension
+competition <- function(P, L_size){
+    for(x in 1:L_size){
+        for(y in 1:L_size){
+            on_cell <- sum(P[,2] == x & P[,3] == y);
+            if(on_cell > 1){
+                P_row <- which(P[,2] == x & P[,3] == y);
+                P_com <- P[P_row,];
+                winnr <- which.max(P_com[,4]);
+                dead  <- which(P[,1] %in% P_com[-winnr, 1]);
+                P[dead, 4] <- -1;
+            }
+        }
+    }
+    P <- P[P[,4] > 0, ];
+    return(P);
+}
+    
+
+
+
+
+
+P <- ini_Ps(L_size = 10, N_ini = 200);
+P <- competition(P = P, L_size = 10);
+
+
