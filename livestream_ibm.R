@@ -84,8 +84,13 @@ inc_Os <- function(P, O){
 # pr_d is the probability of individual death
 ind_death <- function(P, pr_d = 0.1){
    is_live <- rbinom(n = dim(P)[1], size = 1, pr = 1 - pr_d);
-   P       <- P[is_live == 1,];
-   P       <- P[P[,4] > 0, ];
+   living  <- sum(is_live);
+   if(living > 1){
+       P <- P[is_live == 1,];
+       P <- P[P[,4] > 0, ];
+   }else{
+       P <- NULL;
+   }
    return(P);
 }
 
@@ -116,10 +121,46 @@ ind_growth <- function(P, gr_mean = 1, gr_sd = 1){
 }
 
 
-E <- FALSE;
-P <- ini_Ps(L_size = 20, N_ini = 70, shp = 5, rat = 1)
-P <- competition(P, L_size = 20)
-O <- reproduction(P = P, L_size = 20, N_seeds = 10, rng = 2, thresh_size = 10)
+ts     <- 1;
+tmax   <- 10;
+L_size <- 20;
+N_ini  <- 70;
+sz_th  <- 10;
+Nseeds <- 10;
+rng_s  <- 2; 
+pr_d   <- 0.5;
+gr_mn  <- 1;
+gr_sd  <- 1;
+extin  <- FALSE;
+P      <- ini_Ps(L_size = L_size, N_ini = N_ini, shp = 5, rat = 1);
+P_hist <- NULL;
+while(ts < tmax & extin == FALSE){
+    P <- competition(P, L_size = L_size);
+    O <- reproduction(P = P, L_size = L_size, N_seeds = Nseeds, 
+                      rng = rng_s, thresh_size = sz_th);
+    if(!is.null(O)){
+        P <- inc_Os(P = P, O = O);
+    }
+    P     <- ind_growth(P = P, gr_mean = gr_mn, gr_sd = gr_sd);
+    P     <- ind_death(P = P, pr_d = pr_d);
+    extin <- check_extinct(P);
+    P_hist[[ts]] <- P;
+    ts    <- ts + 1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+P <- competition(P, L_size = 20);
+O <- reproduction(P = P, L_size = 20, N_seeds = 10, rng = 2, thresh_size = 10);
 if(!is.null(O)){
     P <- inc_Os(P = P, O = O);
 }
