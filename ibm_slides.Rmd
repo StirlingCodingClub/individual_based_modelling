@@ -1,8 +1,8 @@
 ---
 title: "Introduction to individual-based modelling using R"
-subtitle: https://stirlingcodingclub.github.io/individual_based_modelling/ibm_notes.html
+subtitle: https://stirlingcodingclub.github.io/individual_based_modelling
 author: "Brad Duthie"
-date: "25 March 2020"
+date: "20 April 2022"
 output:
   beamer_presentation:
     theme: "default"
