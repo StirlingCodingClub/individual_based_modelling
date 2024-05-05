@@ -2,7 +2,7 @@
 title: "Introduction to individual-based modelling using R"
 subtitle: https://stirlingcodingclub.github.io/individual_based_modelling
 author: "Brad Duthie"
-date: "20 April 2022"
+date: "05 April 2023"
 output:
   beamer_presentation:
     theme: "default"
@@ -191,7 +191,7 @@ while(ts < time_steps){
 
 - Walks through R code for modelling individual movement, birth, death, and predation over time \newline
 - Meant to be a starting point for further development \newline
-- Ask questions in Twitch chat and in the [GitHub Repository issues page](https://github.com/StirlingCodingClub/individual_based_modelling/issues)
+- Ask questions in Teams chat and in the [GitHub Repository issues page](https://github.com/StirlingCodingClub/individual_based_modelling/issues)
 
 
 
