@@ -1,11 +1,11 @@
 ---
 title: "Introduction to individual-based modelling using R"
 author: "Brad Duthie"
-date: "5 April 2023"
+date: "29 April 2025"
 output:
-  pdf_document: default
   html_document:
     code_folding: show
+  pdf_document: default
 bibliography: ibm_refs.bib
 ---
 
